@@ -4,7 +4,7 @@ const store = require('./store')
 const video = document.querySelector('video')
 const audio = document.querySelector('audio')
 
-Vue.config.debug = true
+Vue.config.debug = false
 
 video.addEventListener('error', start)
 video.addEventListener('abort', start)
