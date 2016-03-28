@@ -1,5 +1,5 @@
 const Vue = require('vue')
-const THREE = require('three.js')
+const THREE = require('three')
 const chassis = require('./interact/data/chassis')
 const wheels = require('./interact/data/wheels')
 const position = require('./interact/data/position')

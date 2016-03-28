@@ -13,7 +13,7 @@ video {
   transition: opacity 2s;
 }
 
-#render, #interact {
+#zone, #table,#interact {
   position: fixed;
   left: 0;
   top: 0;
@@ -23,7 +23,7 @@ video {
   -webkit-user-select: none;
 }
 
-#render { z-index: 0; }
+#zone { z-index: 0; }
 #interact {
   position: fixed;
   top: 0;

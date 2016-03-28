@@ -1,32 +1,35 @@
-const THREE = window.THREE = require('three.js')
+const THREE = window.THREE = require('three')
+
 require('./plugins/OrbitControls')
 
-const renderer = module.exports = new THREE.WebGLRenderer({
-  canvas: document.querySelector('#render'),
+const zoneRender = module.exports = new THREE.WebGLRenderer({
+  canvas: document.querySelector('#zone'),
   antialias: true
 })
-renderer.shadowMap.enabled = true
-renderer.shadowMap.soft = true
-renderer.shadowMap.type = THREE.PCFSoftShadowMap
-
+zoneRender.shadowMap.enabled = true
+zoneRender.shadowMap.soft = true
+zoneRender.shadowMap.type = THREE.PCFSoftShadowMap
+zoneRender.physicallyCorrectLights = true
 const setSize = () => {
-  renderer.setSize(window.innerWidth, window.innerHeight)
+  zoneRender.setSize(window.innerWidth, window.innerHeight)
 }
+
+const stats = require('./stats')
+const controller = require('./controller')
+const camera = require('./controller/camera')
+const raycast = require('./zone/area/raycast')
+const zone = window.scene = require('./zone')
+
 window.addEventListener('resize', setSize)
 setSize()
 
-// const stats = require('./stats')
-const controller = require('./controller')
-const camera = require('./controller/camera')
-const raycast = require('./scene/area/raycast')
-const scene = window.scene = require('./scene')
 
 const render = () => {
-  // stats.begin()
+  stats.begin()
   controller.update()
   raycast()
-  renderer.render(scene, camera)
-  // stats.end()
+  zoneRender.render(zone, camera)
+  stats.end()
   window.requestAnimationFrame(render)
 }
 window.requestAnimationFrame(render)

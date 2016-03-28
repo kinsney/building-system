@@ -1,14 +1,11 @@
-const THREE = require('three.js')
+const THREE = require('three')
 
 const camera = require('./camera')
 const store = require('../../store')
-const raycast = require('../scene/area/raycast')
+const raycast = require('../zone/area/raycast')
 const controls = module.exports = new THREE.OrbitControls(camera)
-const bgmusic = document.querySelector('audio')
 
 Object.assign(controls, {
-  maxDistance: 7000,
-  minDistance: 4000,
 
   enableDamping: true,
   dampingFactor: 0.2,
@@ -20,18 +17,11 @@ Object.assign(controls, {
   enableKeys: false,
 
   minPolarAngle: Math.PI / 180 * 50,
-  maxPolarAngle: Math.PI / 180 * 80
+  maxPolarAngle: Math.PI / 180 * 80,
+  autoRotate:false
 })
 
-controls.target.set(0, 200, 0)
-
-store.$watch('rotation',
-  value => controls.autoRotate = value,
-  { immediate: true })
-
-store.$watch('music',
-  value => value ? bgmusic.play() : bgmusic.pause(),
-  { immediate: true })
+controls.target.set(0, 1000, 0)
 
 document.addEventListener('mousemove', event => {
   raycast.mouse.x = (event.clientX / window.innerWidth) * 2 - 1
