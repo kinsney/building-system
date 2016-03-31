@@ -1,22 +1,25 @@
 const THREE = require('three')
 const camera = require('../../controller/camera')
-const area = require('./')
+// const area = require('./')
+const buildings = require('../buildings')
 const store = require('../../../store')
 const raycaster = new THREE.Raycaster()
+const utils = require('../utils')
+let hoverObjectName = store.hoverObjectName
 
-let hoverPartName = store.hoverPartName
-
-module.exports = () => {
+module.exports = (scene) => {
   if (!store.hoverEnabled) {
-    store.hoverPartName = ''
+    store.hoverObjectName = ''
     return
   }
   raycaster.setFromCamera(mouse, camera)
-  const nearest = raycaster.intersectObject(area, true)[0]
-  const targetHoverPartName = nearest != null ? nearest.object.name : ''
-  if (hoverPartName !== targetHoverPartName) {
-    store.hoverPartName = hoverPartName = targetHoverPartName
+  const nearest = raycaster.intersectObject(scene, true)[0]
+  const targetHoverObjectName = nearest != null ? nearest.object.name : ''
+  if (hoverObjectName !== targetHoverObjectName) {
+    store.hoverObjectName = hoverObjectName = targetHoverObjectName
   }
 }
 
+
 const mouse = module.exports.mouse = new THREE.Vector2()
+

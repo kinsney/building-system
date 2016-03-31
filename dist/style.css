@@ -24,6 +24,9 @@ video {
 }
 
 #zone { z-index: 0; }
+#table{
+  z-index:5;
+}
 #interact {
   position: fixed;
   top: 0;

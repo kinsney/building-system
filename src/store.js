@@ -1,91 +1,55 @@
 const Vue = require('vue')
 const THREE = require('three')
-const chassis = require('./interact/data/chassis')
-const wheels = require('./interact/data/wheels')
-const position = require('./interact/data/position')
-
-function toHSLObject(colorString) {
-  var color = new THREE.Color(colorString)
-  var hsl = color.getHSL()
-  return {
-    h: hsl.h,
-    s: hsl.s * 100 + '%',
-    l: hsl.l * 100 + '%'
-  }
-}
-
+const buildingsJson = require('./render/zone/buildings.json')
 window.store = module.exports = new Vue({
   data: {
-    music: false,
-    rotation: true,
-    hoverEnabled: true,
-    hoverPartName: null,
-    currentPartName: null,
+    current:'zone',
+    hoverEnabled:true,
+    currentObjectName:'',
+    hoverObjectName:'',
     situation: 'garage',
-    chassis: {
-      name: '',
-      offsetY: 30,
-      parts: null
+    watcher:{
+
     },
-    wheels: {
-      name: '',
-      offsetX: 0,
-      offsetZ: 0,
-      parts: null
-    }
-  },
-  computed: {
-    currentPart () {
-      return this.chassis.parts[this.currentPartName] ||
-        this.wheels.parts[this.currentPartName] ||
-        null
-    }
-  },
-  watch: {
-    'chassis.name' (name) {
-      const chassisParts = {}
-      const partsData = chassis[name]
+    streetlights:{
 
-      Object.keys(partsData).sort().forEach(partName => {
-        const partData = partsData[partName]
-        chassisParts[partName] = {
-          name: partName,
-          area: partData.area,
-          choice: partData.choices[0],
-          color: toHSLObject(partData.color),
-          material: partData.material,
-          all: partData.all,
-          set: partData.set
-        }
-      })
-
-      this.chassis.parts = chassisParts
-      this.chassis.offsetY = 30
-      this.wheels.offsetX = Math.abs(position[name].wheels[0])
-      this.wheels.offsetZ = Math.abs(position[name].wheels[1])
     },
-    'wheels.name' (name) {
-      const wheelsParts = {}
-      const partsData = wheels[name]
-
-      Object.keys(partsData).sort().forEach(partName => {
-        const partData = partsData[partName]
-        wheelsParts[partName] = {
-          name: partName,
-          area: partData.area,
-          choice: partData.choices[0],
-          color: toHSLObject(partData.color),
-          material: partData.material,
-          all: partData.all,
-          set: partData.set,
-        }
-      })
-      this.wheels.parts = wheelsParts
+    building:{
+      name:'',
+      currentFloor:null,
+      floors:null,
+    },
+  },
+  computed:{
+     devices () {
+      return this.building.currentFloor === null?null:this.building.floors[this.building.currentFloor]
     }
   },
-  created () {
-    this.chassis.name = 'a3'
-    this.wheels.name = '19'
+  watch:{
+    'currentObjectName' (name){
+      //now position 0:null 1:building 2:building-1
+      let position = name.split('-')
+      switch(position.length){
+        case 0:this.current = 'zone'
+        break;
+        case 1:this.current = 'table';
+        let buildingName = this.building.name=position[0]
+        let building = buildingsJson[buildingName]
+        if(building){
+          let floors = building["floors"]
+              this.building.floors = floors
+              this.building.currentFloor = null
+        }
+        break;
+        case 2:this.current = 'table'
+        this.building.name = position[0]
+        this.building.currentFloor = Number(position[1])
+        break;
+      }
+    }
+  },
+  created (){
+    this.building.name = ''
   }
 })
 /**

@@ -4,7 +4,6 @@ const camera = require('./camera')
 const store = require('../../store')
 const raycast = require('../zone/area/raycast')
 const controls = module.exports = new THREE.OrbitControls(camera)
-
 Object.assign(controls, {
 
   enableDamping: true,
@@ -28,9 +27,3 @@ document.addEventListener('mousemove', event => {
   raycast.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
 })
 
-document.addEventListener('click',
-  () => {
-    if (store.hoverEnabled) {
-      store.currentPartName = store.hoverPartName
-    }
-  })

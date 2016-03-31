@@ -1,0 +1,32 @@
+{
+    "building1":{
+        "floors":[
+            {
+                "cabinet":{
+
+                }
+            },
+            {
+                "sofa":{
+
+                },
+                "chair":{
+
+                }
+            }
+        ]
+    },
+    "building2":{
+         "floors":[
+            {
+                "door":"door.json"
+            },
+            {
+                "door":"door.json"
+            }
+            ,{
+                "door":"door.json"
+            }
+        ]
+    }
+}
