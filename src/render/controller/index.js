@@ -9,14 +9,16 @@ Object.assign(controls, {
   enableDamping: true,
   dampingFactor: 0.2,
 
+  maxDistance:30000,
+
   rotateSpeed: 0.2,
   autoRotateSpeed: -0.3,
 
   // enablePan: false,
   enableKeys: false,
 
-  minPolarAngle: Math.PI / 180 * 50,
-  maxPolarAngle: Math.PI / 180 * 80,
+  minPolarAngle: Math.PI / 180 * 20,  //50
+  maxPolarAngle: Math.PI / 180 * 180,  //80
   autoRotate:false
 })
 

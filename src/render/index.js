@@ -15,7 +15,8 @@ zoneRender.shadowMap.enabled = true
 zoneRender.shadowMap.soft = true
 zoneRender.shadowMap.type = THREE.PCFSoftShadowMap
 zoneRender.physicallyCorrectLights = true
-const setSize = () => {
+const setSize = () => 
+{
   zoneRender.setSize(window.innerWidth, window.innerHeight)
   tableRender.setSize(window.innerWidth, window.innerHeight)
 }

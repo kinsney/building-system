@@ -1,7 +1,6 @@
 const THREE = require('three')
 const store = require('../../../store')
 
-
 const build = exports.build = (name,x=0,y=0,z=0) =>{
     const loader = new THREE.JSONLoader()
     let mesh = new THREE.Mesh()

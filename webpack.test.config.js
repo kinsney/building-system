@@ -3,27 +3,30 @@ var join = require('path').join
 module.exports = {
   context: join(__dirname, 'src'),
   entry: './app',
-  output: {
+  output: 
+  {
     path: join(__dirname, 'dist'),
     filename: 'app.js'
   },
-  resolve: {
-    extensions: ['', '.js', '.json', '.vue']
-  },
-  module: {
-    loaders: [
+  resolve: {extensions: ['', '.js', '.json', '.vue'] },
+  module: 
+  {
+    loaders: 
+    [
       { test: /\.js$/, exclude: /node_modules/, loader: 'babel' },
       { test: /\.json$/, loader: 'json' },
       { test: /\.vue$/, loader: 'vue' },
       { test: /\.png$/, loader: 'url' }
     ]
   },
-  babel: {
+  babel: 
+  {
     presets: ['es2015'],
     plugins: ['transform-runtime']
   },
   devtool: 'eval',
-  devServer: {
+  devServer: 
+  {
     contentBase: 'dist',
     inline: true,
     host: process.env.IP || '0.0.0.0',

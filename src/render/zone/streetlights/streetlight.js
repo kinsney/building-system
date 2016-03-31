@@ -23,11 +23,15 @@ spotLight.target.position.set(5000,5000,3800)
 // bulbLight.castShadow = true;
 
 const streetlight = module.exports = window.streetlight =  new THREE.Object3D
+
+/*then load a 3D modle mesh*/
 var loader = new THREE.JSONLoader()
 var mesh = new THREE.Mesh()
 mesh.name = 'streetlight'
 mesh.castShadow = true
-loader.load('streetlight/streetlight.json',(geometry,materials) =>{
+
+loader.load('streetlight/streetlight.json',(geometry,materials) =>
+{
   const material = new THREE.MeshFaceMaterial(materials)
   Object.assign(mesh,{geometry,material})
 })

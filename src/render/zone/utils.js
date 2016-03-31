@@ -1,7 +1,6 @@
 const Vue = require('vue')
 const THREE = require('three')
 
-const reflection = require('./reflection')
 
 const loader = new THREE.JSONLoader()
 

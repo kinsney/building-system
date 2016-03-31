@@ -6,4 +6,3 @@ area.position.y = 200
 area.rotation.y = Math.PI * 45 / 180
 const buildings = require('../buildings')
 
-// area.add(buildings)

@@ -46,6 +46,7 @@
 
 	'use strict';
 
+<<<<<<< Updated upstream
 	var Vue = __webpack_require__(2);
 	var store = __webpack_require__(3);
 	__webpack_require__(5);
@@ -54,11 +55,20 @@
 /***/ },
 /* 1 */,
 /* 2 */
+=======
+	var Vue = __webpack_require__(1);
+	var store = __webpack_require__(2);
+	__webpack_require__(19);
+	__webpack_require__(51);
+
+/***/ },
+/* 1 */
+>>>>>>> Stashed changes
 /***/ function(module, exports, __webpack_require__) {
 
-	/*!
-	 * Vue.js v1.0.10
-	 * (c) 2015 Evan You
+	/* WEBPACK VAR INJECTION */(function(global) {/*!
+	 * Vue.js v1.0.20
+	 * (c) 2016 Evan You
 	 * Released under the MIT License.
 	 */
 	'use strict';
@@ -87,6 +97,7 @@
 	      vm._digest();
 	    }
 	  }
+	  return val;
 	}
 
 	/**
@@ -136,7 +147,7 @@
 	 * @return {Boolean}
 	 */
 
-	var literalValueRE = /^\s?(true|false|[\d\.]+|'[^']*'|"[^"]*")\s?$/;
+	var literalValueRE = /^\s?(true|false|-?[\d\.]+|'[^']*'|"[^"]*")\s?$/;
 
 	function isLiteral(exp) {
 	  return literalValueRE.test(exp);
@@ -263,7 +274,7 @@
 	 * @return {Function}
 	 */
 
-	function bind$1(fn, ctx) {
+	function bind(fn, ctx) {
 	  return function (a) {
 	    var l = arguments.length;
 	    return l ? l > 1 ? fn.apply(ctx, arguments) : fn.call(ctx, a) : fn.call(ctx);
@@ -342,7 +353,7 @@
 	var isArray = Array.isArray;
 
 	/**
-	 * Define a non-enumerable property
+	 * Define a property.
 	 *
 	 * @param {Object} obj
 	 * @param {String} key
@@ -446,9 +457,13 @@
 	// Browser environment sniffing
 	var inBrowser = typeof window !== 'undefined' && Object.prototype.toString.call(window) !== '[object Object]';
 
-	var isIE9 = inBrowser && navigator.userAgent.toLowerCase().indexOf('msie 9.0') > 0;
+	// detect devtools
+	var devtools = inBrowser && window.__VUE_DEVTOOLS_GLOBAL_HOOK__;
 
-	var isAndroid = inBrowser && navigator.userAgent.toLowerCase().indexOf('android') > 0;
+	// UA sniffing for working around browser-specific quirks
+	var UA = inBrowser && window.navigator.userAgent.toLowerCase();
+	var isIE9 = UA && UA.indexOf('msie 9.0') > 0;
+	var isAndroid = UA && UA.indexOf('android') > 0;
 
 	var transitionProp = undefined;
 	var transitionEndEvent = undefined;
@@ -487,6 +502,7 @@
 	      copies[i]();
 	    }
 	  }
+
 	  /* istanbul ignore if */
 	  if (typeof MutationObserver !== 'undefined') {
 	    var counter = 1;
@@ -500,7 +516,11 @@
 	      textNode.data = counter;
 	    };
 	  } else {
-	    timerFunc = setTimeout;
+	    // webpack attempts to inject a shim for setImmediate
+	    // if it is used as a global, so we have to work around that to
+	    // avoid bundling unnecessary code.
+	    var context = inBrowser ? window : typeof global !== 'undefined' ? global : {};
+	    timerFunc = context.setImmediate || setTimeout;
 	  }
 	  return function (cb, ctx) {
 	    var func = ctx ? function () {
@@ -534,23 +554,29 @@
 	 */
 
 	p.put = function (key, value) {
-	  var entry = {
-	    key: key,
-	    value: value
-	  };
-	  this._keymap[key] = entry;
-	  if (this.tail) {
-	    this.tail.newer = entry;
-	    entry.older = this.tail;
-	  } else {
-	    this.head = entry;
-	  }
-	  this.tail = entry;
+	  var removed;
 	  if (this.size === this.limit) {
-	    return this.shift();
-	  } else {
+	    removed = this.shift();
+	  }
+
+	  var entry = this.get(key, true);
+	  if (!entry) {
+	    entry = {
+	      key: key
+	    };
+	    this._keymap[key] = entry;
+	    if (this.tail) {
+	      this.tail.newer = entry;
+	      entry.older = this.tail;
+	    } else {
+	      this.head = entry;
+	    }
+	    this.tail = entry;
 	    this.size++;
 	  }
+	  entry.value = value;
+
+	  return removed;
 	};
 
 	/**
@@ -566,6 +592,7 @@
 	    this.head.older = undefined;
 	    entry.newer = entry.older = undefined;
 	    this._keymap[entry.key] = undefined;
+	    this.size--;
 	  }
 	  return entry;
 	};
@@ -618,6 +645,7 @@
 	var str;
 	var dir;
 	var c;
+	var prev;
 	var i;
 	var l;
 	var lastFilterIndex;
@@ -684,12 +712,11 @@
 	 *   ]
 	 * }
 	 *
-	 * @param {String} str
+	 * @param {String} s
 	 * @return {Object}
 	 */
 
 	function parseDirective(s) {
-
 	  var hit = cache$1.get(s);
 	  if (hit) {
 	    return hit;
@@ -703,13 +730,14 @@
 	  dir = {};
 
 	  for (i = 0, l = str.length; i < l; i++) {
+	    prev = c;
 	    c = str.charCodeAt(i);
 	    if (inSingle) {
 	      // check single quote
-	      if (c === 0x27) inSingle = !inSingle;
+	      if (c === 0x27 && prev !== 0x5C) inSingle = !inSingle;
 	    } else if (inDouble) {
 	      // check double quote
-	      if (c === 0x22) inDouble = !inDouble;
+	      if (c === 0x22 && prev !== 0x5C) inDouble = !inDouble;
 	    } else if (c === 0x7C && // pipe
 	    str.charCodeAt(i + 1) !== 0x7C && str.charCodeAt(i - 1) !== 0x7C) {
 	      if (dir.expression == null) {
@@ -847,16 +875,17 @@
 	 * into one single expression as '"a " + b + " c"'.
 	 *
 	 * @param {Array} tokens
+	 * @param {Vue} [vm]
 	 * @return {String}
 	 */
 
-	function tokensToExp(tokens) {
+	function tokensToExp(tokens, vm) {
 	  if (tokens.length > 1) {
 	    return tokens.map(function (token) {
-	      return formatToken(token);
+	      return formatToken(token, vm);
 	    }).join('+');
 	  } else {
-	    return formatToken(tokens[0], true);
+	    return formatToken(tokens[0], vm, true);
 	  }
 	}
 
@@ -864,12 +893,13 @@
 	 * Format a single token.
 	 *
 	 * @param {Object} token
-	 * @param {Boolean} single
+	 * @param {Vue} [vm]
+	 * @param {Boolean} [single]
 	 * @return {String}
 	 */
 
-	function formatToken(token, single) {
-	  return token.tag ? inlineFilters(token.value, single) : '"' + token.value + '"';
+	function formatToken(token, vm, single) {
+	  return token.tag ? token.oneTime && vm ? '"' + vm.$eval(token.value) + '"' : inlineFilters(token.value, single) : '"' + token.value + '"';
 	}
 
 	/**
@@ -885,9 +915,9 @@
 	 * @return {String}
 	 */
 
-	var filterRE$1 = /[^|]\|[^|]/;
+	var filterRE = /[^|]\|[^|]/;
 	function inlineFilters(exp, single) {
-	  if (!filterRE$1.test(exp)) {
+	  if (!filterRE.test(exp)) {
 	    return single ? exp : '(' + exp + ')';
 	  } else {
 	    var dir = parseDirective(exp);
@@ -902,7 +932,7 @@
 	  }
 	}
 
-	var text$1 = Object.freeze({
+	var text = Object.freeze({
 	  compileRegex: compileRegex,
 	  parseText: parseText,
 	  tokensToExp: tokensToExp
@@ -944,12 +974,11 @@
 	  warnExpressionErrors: true,
 
 	  /**
-	   * Whether or not to handle fully object properties which
-	   * are already backed by getters and seters. Depending on
-	   * use case and environment, this might introduce non-neglible
-	   * performance penalties.
+	   * Whether to allow devtools inspection.
+	   * Disabled by default in production builds.
 	   */
-	  convertAllProperties: false,
+
+	  devtools: ("production") !== 'production',
 
 	  /**
 	   * Internal flag to indicate the delimiters have been
@@ -1112,6 +1141,13 @@
 	  transition[action](op, cb);
 	}
 
+	var transition = Object.freeze({
+	  appendWithTransition: appendWithTransition,
+	  beforeWithTransition: beforeWithTransition,
+	  removeWithTransition: removeWithTransition,
+	  applyTransition: applyTransition
+	});
+
 	/**
 	 * Query an element selector if it's not an element already.
 	 *
@@ -1177,6 +1213,18 @@
 	    val = getAttr(node, 'v-bind:' + name);
 	  }
 	  return val;
+	}
+
+	/**
+	 * Check the presence of a bind attribute.
+	 *
+	 * @param {Node} node
+	 * @param {String} name
+	 * @return {Boolean}
+	 */
+
+	function hasBindAttr(node, name) {
+	  return node.hasAttribute(name) || node.hasAttribute(':' + name) || node.hasAttribute('v-bind:' + name);
 	}
 
 	/**
@@ -1250,10 +1298,11 @@
 	 * @param {Element} el
 	 * @param {String} event
 	 * @param {Function} cb
+	 * @param {Boolean} [useCapture]
 	 */
 
-	function on$1(el, event, cb) {
-	  el.addEventListener(event, cb);
+	function on(el, event, cb, useCapture) {
+	  el.addEventListener(event, cb, useCapture);
 	}
 
 	/**
@@ -1269,19 +1318,54 @@
 	}
 
 	/**
+	 * For IE9 compat: when both class and :class are present
+	 * getAttribute('class') returns wrong value...
+	 *
+	 * @param {Element} el
+	 * @return {String}
+	 */
+
+	function getClass(el) {
+	  var classname = el.className;
+	  if (typeof classname === 'object') {
+	    classname = classname.baseVal || '';
+	  }
+	  return classname;
+	}
+
+	/**
+	 * In IE9, setAttribute('class') will result in empty class
+	 * if the element also has the :class attribute; However in
+	 * PhantomJS, setting `className` does not work on SVG elements...
+	 * So we have to do a conditional check here.
+	 *
+	 * @param {Element} el
+	 * @param {String} cls
+	 */
+
+	function setClass(el, cls) {
+	  /* istanbul ignore if */
+	  if (isIE9 && !/svg$/.test(el.namespaceURI)) {
+	    el.className = cls;
+	  } else {
+	    el.setAttribute('class', cls);
+	  }
+	}
+
+	/**
 	 * Add class with compatibility for IE & SVG
 	 *
 	 * @param {Element} el
-	 * @param {Strong} cls
+	 * @param {String} cls
 	 */
 
 	function addClass(el, cls) {
 	  if (el.classList) {
 	    el.classList.add(cls);
 	  } else {
-	    var cur = ' ' + (el.getAttribute('class') || '') + ' ';
+	    var cur = ' ' + getClass(el) + ' ';
 	    if (cur.indexOf(' ' + cls + ' ') < 0) {
-	      el.setAttribute('class', (cur + cls).trim());
+	      setClass(el, (cur + cls).trim());
 	    }
 	  }
 	}
@@ -1290,19 +1374,19 @@
 	 * Remove class with compatibility for IE & SVG
 	 *
 	 * @param {Element} el
-	 * @param {Strong} cls
+	 * @param {String} cls
 	 */
 
 	function removeClass(el, cls) {
 	  if (el.classList) {
 	    el.classList.remove(cls);
 	  } else {
-	    var cur = ' ' + (el.getAttribute('class') || '') + ' ';
+	    var cur = ' ' + getClass(el) + ' ';
 	    var tar = ' ' + cls + ' ';
 	    while (cur.indexOf(tar) >= 0) {
 	      cur = cur.replace(tar, ' ');
 	    }
-	    el.setAttribute('class', cur.trim());
+	    setClass(el, cur.trim());
 	  }
 	  if (!el.className) {
 	    el.removeAttribute('class');
@@ -1315,14 +1399,14 @@
 	 *
 	 * @param {Element} el
 	 * @param {Boolean} asFragment
-	 * @return {Element}
+	 * @return {Element|DocumentFragment}
 	 */
 
 	function extractContent(el, asFragment) {
 	  var child;
 	  var rawContent;
 	  /* istanbul ignore if */
-	  if (isTemplate(el) && el.content instanceof DocumentFragment) {
+	  if (isTemplate(el) && isFragment(el.content)) {
 	    el = el.content;
 	  }
 	  if (el.hasChildNodes()) {
@@ -1338,20 +1422,26 @@
 	}
 
 	/**
-	 * Trim possible empty head/tail textNodes inside a parent.
+	 * Trim possible empty head/tail text and comment
+	 * nodes inside a parent.
 	 *
 	 * @param {Node} node
 	 */
 
 	function trimNode(node) {
-	  trim(node, node.firstChild);
-	  trim(node, node.lastChild);
+	  var child;
+	  /* eslint-disable no-sequences */
+	  while ((child = node.firstChild, isTrimmable(child))) {
+	    node.removeChild(child);
+	  }
+	  while ((child = node.lastChild, isTrimmable(child))) {
+	    node.removeChild(child);
+	  }
+	  /* eslint-enable no-sequences */
 	}
 
-	function trim(parent, node) {
-	  if (node && node.nodeType === 3 && !node.data.trim()) {
-	    parent.removeChild(node);
-	  }
+	function isTrimmable(node) {
+	  return node && (node.nodeType === 3 && !node.data.trim() || node.nodeType === 8);
 	}
 
 	/**
@@ -1386,7 +1476,7 @@
 
 	function createAnchor(content, persist) {
 	  var anchor = config.debug ? document.createComment(content) : document.createTextNode(persist ? ' ' : '');
-	  anchor.__vue_anchor = true;
+	  anchor.__v_anchor = true;
 	  return anchor;
 	}
 
@@ -1461,7 +1551,53 @@
 	  }
 	}
 
-	var commonTagRE = /^(div|p|span|img|a|b|i|br|ul|ol|li|h1|h2|h3|h4|h5|h6|code|pre|table|th|td|tr|form|label|input|select|option|nav|article|section|header|footer)$/;
+	/**
+	 * Check if a node is a DocumentFragment.
+	 *
+	 * @param {Node} node
+	 * @return {Boolean}
+	 */
+
+	function isFragment(node) {
+	  return node && node.nodeType === 11;
+	}
+
+	/**
+	 * Get outerHTML of elements, taking care
+	 * of SVG elements in IE as well.
+	 *
+	 * @param {Element} el
+	 * @return {String}
+	 */
+
+	function getOuterHTML(el) {
+	  if (el.outerHTML) {
+	    return el.outerHTML;
+	  } else {
+	    var container = document.createElement('div');
+	    container.appendChild(el.cloneNode(true));
+	    return container.innerHTML;
+	  }
+	}
+
+	var commonTagRE = /^(div|p|span|img|a|b|i|br|ul|ol|li|h1|h2|h3|h4|h5|h6|code|pre|table|th|td|tr|form|label|input|select|option|nav|article|section|header|footer)$/i;
+	var reservedTagRE = /^(slot|partial|component)$/i;
+
+	var isUnknownElement = undefined;
+	if (false) {
+	  isUnknownElement = function (el, tag) {
+	    if (tag.indexOf('-') > -1) {
+	      // http://stackoverflow.com/a/28210364/1070244
+	      return el.constructor === window.HTMLUnknownElement || el.constructor === window.HTMLElement;
+	    } else {
+	      return (/HTMLUnknownElement/.test(el.toString()) &&
+	        // Chrome returns unknown for several HTML5 elements.
+	        // https://code.google.com/p/chromium/issues/detail?id=540526
+	        !/^(data|time|rtc|rb)$/.test(tag)
+	      );
+	    }
+	  };
+	}
 
 	/**
 	 * Check if an element is a component, if yes return its
@@ -1475,7 +1611,7 @@
 	function checkComponentAttr(el, options) {
 	  var tag = el.tagName.toLowerCase();
 	  var hasAttrs = el.hasAttributes();
-	  if (!commonTagRE.test(tag) && tag !== 'component') {
+	  if (!commonTagRE.test(tag) && !reservedTagRE.test(tag)) {
 	    if (resolveAsset(options, 'components', tag)) {
 	      return { id: tag };
 	    } else {
@@ -1483,11 +1619,11 @@
 	      if (is) {
 	        return is;
 	      } else if (false) {
-	        if (tag.indexOf('-') > -1 || /HTMLUnknownElement/.test(el.toString()) &&
-	        // Chrome returns unknown for several HTML5 elements.
-	        // https://code.google.com/p/chromium/issues/detail?id=540526
-	        !/^(data|time|rtc|rb)$/.test(tag)) {
-	          warn('Unknown custom element: <' + tag + '> - did you ' + 'register the component correctly?');
+	        var expectedTag = options._componentNameMap && options._componentNameMap[tag];
+	        if (expectedTag) {
+	          warn('Unknown custom element: <' + tag + '> - ' + 'did you mean <' + expectedTag + '>? ' + 'HTML is case-insensitive, remember to use kebab-case in templates.');
+	        } else if (isUnknownElement(el, tag)) {
+	          warn('Unknown custom element: <' + tag + '> - did you ' + 'register the component correctly? For recursive components, ' + 'make sure to provide the "name" option.');
 	        }
 	      }
 	    }
@@ -1514,81 +1650,6 @@
 	      return { id: exp, dynamic: true };
 	    }
 	  }
-	}
-
-	/**
-	 * Set a prop's initial value on a vm and its data object.
-	 *
-	 * @param {Vue} vm
-	 * @param {Object} prop
-	 * @param {*} value
-	 */
-
-	function initProp(vm, prop, value) {
-	  var key = prop.path;
-	  vm[key] = vm._data[key] = assertProp(prop, value) ? value : undefined;
-	}
-
-	/**
-	 * Assert whether a prop is valid.
-	 *
-	 * @param {Object} prop
-	 * @param {*} value
-	 */
-
-	function assertProp(prop, value) {
-	  // if a prop is not provided and is not required,
-	  // skip the check.
-	  if (prop.raw === null && !prop.required) {
-	    return true;
-	  }
-	  var options = prop.options;
-	  var type = options.type;
-	  var valid = true;
-	  var expectedType;
-	  if (type) {
-	    if (type === String) {
-	      expectedType = 'string';
-	      valid = typeof value === expectedType;
-	    } else if (type === Number) {
-	      expectedType = 'number';
-	      valid = typeof value === 'number';
-	    } else if (type === Boolean) {
-	      expectedType = 'boolean';
-	      valid = typeof value === 'boolean';
-	    } else if (type === Function) {
-	      expectedType = 'function';
-	      valid = typeof value === 'function';
-	    } else if (type === Object) {
-	      expectedType = 'object';
-	      valid = isPlainObject(value);
-	    } else if (type === Array) {
-	      expectedType = 'array';
-	      valid = isArray(value);
-	    } else {
-	      valid = value instanceof type;
-	    }
-	  }
-	  if (!valid) {
-	    ("production") !== 'production' && warn('Invalid prop: type check failed for ' + prop.path + '="' + prop.raw + '".' + ' Expected ' + formatType(expectedType) + ', got ' + formatValue(value) + '.');
-	    return false;
-	  }
-	  var validator = options.validator;
-	  if (validator) {
-	    if (!validator.call(null, value)) {
-	      ("production") !== 'production' && warn('Invalid prop: custom validator check failed for ' + prop.path + '="' + prop.raw + '"');
-	      return false;
-	    }
-	  }
-	  return true;
-	}
-
-	function formatType(val) {
-	  return val ? val.charAt(0).toUpperCase() + val.slice(1) : 'custom type';
-	}
-
-	function formatValue(val) {
-	  return Object.prototype.toString.call(val).slice(8, -1);
 	}
 
 	/**
@@ -1680,7 +1741,7 @@
 	 * Hooks and param attributes are merged as arrays.
 	 */
 
-	strats.init = strats.created = strats.ready = strats.attached = strats.detached = strats.beforeCompile = strats.compiled = strats.beforeDestroy = strats.destroyed = function (parentVal, childVal) {
+	strats.init = strats.created = strats.ready = strats.attached = strats.detached = strats.beforeCompile = strats.compiled = strats.beforeDestroy = strats.destroyed = strats.activate = function (parentVal, childVal) {
 	  return childVal ? parentVal ? parentVal.concat(childVal) : isArray(childVal) ? childVal : [childVal] : parentVal;
 	};
 
@@ -1764,13 +1825,21 @@
 	function guardComponents(options) {
 	  if (options.components) {
 	    var components = options.components = guardArrayAssets(options.components);
-	    var def;
 	    var ids = Object.keys(components);
+	    var def;
+	    if (false) {
+	      var map = options._componentNameMap = {};
+	    }
 	    for (var i = 0, l = ids.length; i < l; i++) {
 	      var key = ids[i];
-	      if (commonTagRE.test(key)) {
-	        ("production") !== 'production' && warn('Do not use built-in HTML elements as component ' + 'id: ' + key);
+	      if (commonTagRE.test(key) || reservedTagRE.test(key)) {
+	        ("production") !== 'production' && warn('Do not use built-in or reserved HTML elements as component ' + 'id: ' + key);
 	        continue;
+	      }
+	      // record a all lowercase <-> kebab-case mapping for
+	      // possible custom element case error warning
+	      if (false) {
+	        map[key.replace(/-/g, '').toLowerCase()] = hyphenate(key);
 	      }
 	      def = components[key];
 	      if (isPlainObject(def)) {
@@ -1887,6 +1956,10 @@
 	 */
 
 	function resolveAsset(options, type, id) {
+	  /* istanbul ignore if */
+	  if (typeof id !== 'string') {
+	    return;
+	  }
 	  var assets = options[type];
 	  var camelizedId;
 	  return assets[id] ||
@@ -1905,6 +1978,64 @@
 	    ("production") !== 'production' && warn('Failed to resolve ' + type + ': ' + id);
 	  }
 	}
+
+	var uid$1 = 0;
+
+	/**
+	 * A dep is an observable that can have multiple
+	 * directives subscribing to it.
+	 *
+	 * @constructor
+	 */
+	function Dep() {
+	  this.id = uid$1++;
+	  this.subs = [];
+	}
+
+	// the current target watcher being evaluated.
+	// this is globally unique because there could be only one
+	// watcher being evaluated at any time.
+	Dep.target = null;
+
+	/**
+	 * Add a directive subscriber.
+	 *
+	 * @param {Directive} sub
+	 */
+
+	Dep.prototype.addSub = function (sub) {
+	  this.subs.push(sub);
+	};
+
+	/**
+	 * Remove a directive subscriber.
+	 *
+	 * @param {Directive} sub
+	 */
+
+	Dep.prototype.removeSub = function (sub) {
+	  this.subs.$remove(sub);
+	};
+
+	/**
+	 * Add self as a dependency to the target watcher.
+	 */
+
+	Dep.prototype.depend = function () {
+	  Dep.target.addDep(this);
+	};
+
+	/**
+	 * Notify all subscribers of a new value.
+	 */
+
+	Dep.prototype.notify = function () {
+	  // stablize the subscriber list first
+	  var subs = toArray(this.subs);
+	  for (var i = 0, l = subs.length; i < l; i++) {
+	    subs[i].update();
+	  }
+	};
 
 	var arrayProto = Array.prototype;
 	var arrayMethods = Object.create(arrayProto)
@@ -1956,7 +2087,7 @@
 
 	def(arrayProto, '$set', function $set(index, val) {
 	  if (index >= this.length) {
-	    this.length = index + 1;
+	    this.length = Number(index) + 1;
 	  }
 	  return this.splice(index, 1, val)[0];
 	});
@@ -1977,65 +2108,25 @@
 	  }
 	});
 
-	var uid$3 = 0;
-
-	/**
-	 * A dep is an observable that can have multiple
-	 * directives subscribing to it.
-	 *
-	 * @constructor
-	 */
-	function Dep() {
-	  this.id = uid$3++;
-	  this.subs = [];
-	}
-
-	// the current target watcher being evaluated.
-	// this is globally unique because there could be only one
-	// watcher being evaluated at any time.
-	Dep.target = null;
-
-	/**
-	 * Add a directive subscriber.
-	 *
-	 * @param {Directive} sub
-	 */
-
-	Dep.prototype.addSub = function (sub) {
-	  this.subs.push(sub);
-	};
-
-	/**
-	 * Remove a directive subscriber.
-	 *
-	 * @param {Directive} sub
-	 */
-
-	Dep.prototype.removeSub = function (sub) {
-	  this.subs.$remove(sub);
-	};
-
-	/**
-	 * Add self as a dependency to the target watcher.
-	 */
-
-	Dep.prototype.depend = function () {
-	  Dep.target.addDep(this);
-	};
-
-	/**
-	 * Notify all subscribers of a new value.
-	 */
-
-	Dep.prototype.notify = function () {
-	  // stablize the subscriber list first
-	  var subs = toArray(this.subs);
-	  for (var i = 0, l = subs.length; i < l; i++) {
-	    subs[i].update();
-	  }
-	};
-
 	var arrayKeys = Object.getOwnPropertyNames(arrayMethods);
+
+	/**
+	 * By default, when a reactive property is set, the new value is
+	 * also converted to become reactive. However in certain cases, e.g.
+	 * v-for scope alias and props, we don't want to force conversion
+	 * because the value may be a nested value under a frozen data structure.
+	 *
+	 * So whenever we want to set a reactive property without forcing
+	 * conversion on the new value, we wrap that call inside this function.
+	 */
+
+	var shouldConvert = true;
+
+	function withoutConversion(fn) {
+	  shouldConvert = false;
+	  fn();
+	  shouldConvert = true;
+	}
 
 	/**
 	 * Observer class that are attached to each observed
@@ -2072,8 +2163,7 @@
 
 	Observer.prototype.walk = function (obj) {
 	  var keys = Object.keys(obj);
-	  var i = keys.length;
-	  while (i--) {
+	  for (var i = 0, l = keys.length; i < l; i++) {
 	    this.convert(keys[i], obj[keys[i]]);
 	  }
 	};
@@ -2085,8 +2175,7 @@
 	 */
 
 	Observer.prototype.observeArray = function (items) {
-	  var i = items.length;
-	  while (i--) {
+	  for (var i = 0, l = items.length; i < l; i++) {
 	    observe(items[i]);
 	  }
 	};
@@ -2134,11 +2223,13 @@
 	 * the prototype chain using __proto__
 	 *
 	 * @param {Object|Array} target
-	 * @param {Object} proto
+	 * @param {Object} src
 	 */
 
 	function protoAugment(target, src) {
+	  /* eslint-disable no-proto */
 	  target.__proto__ = src;
+	  /* eslint-enable no-proto */
 	}
 
 	/**
@@ -2150,10 +2241,8 @@
 	 */
 
 	function copyAugment(target, src, keys) {
-	  var i = keys.length;
-	  var key;
-	  while (i--) {
-	    key = keys[i];
+	  for (var i = 0, l = keys.length; i < l; i++) {
+	    var key = keys[i];
 	    def(target, key, src[key]);
 	  }
 	}
@@ -2176,7 +2265,7 @@
 	  var ob;
 	  if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
 	    ob = value.__ob__;
-	  } else if ((isArray(value) || isPlainObject(value)) && !Object.isFrozen(value) && !value._isVue) {
+	  } else if (shouldConvert && (isArray(value) || isPlainObject(value)) && Object.isExtensible(value) && !value._isVue) {
 	    ob = new Observer(value);
 	  }
 	  if (ob && vm) {
@@ -2196,16 +2285,14 @@
 	function defineReactive(obj, key, val) {
 	  var dep = new Dep();
 
-	  // cater for pre-defined getter/setters
-	  var getter, setter;
-	  if (config.convertAllProperties) {
-	    var property = Object.getOwnPropertyDescriptor(obj, key);
-	    if (property && property.configurable === false) {
-	      return;
-	    }
-	    getter = property && property.get;
-	    setter = property && property.set;
+	  var property = Object.getOwnPropertyDescriptor(obj, key);
+	  if (property && property.configurable === false) {
+	    return;
 	  }
+
+	  // cater for pre-defined getter/setters
+	  var getter = property && property.get;
+	  var setter = property && property.set;
 
 	  var childOb = observe(val);
 	  Object.defineProperty(obj, key, {
@@ -2243,6 +2330,8 @@
 	  });
 	}
 
+
+
 	var util = Object.freeze({
 		defineReactive: defineReactive,
 		set: set,
@@ -2257,7 +2346,7 @@
 		camelize: camelize,
 		hyphenate: hyphenate,
 		classify: classify,
-		bind: bind$1,
+		bind: bind,
 		toArray: toArray,
 		extend: extend,
 		isObject: isObject,
@@ -2270,6 +2359,7 @@
 		isArray: isArray,
 		hasProto: hasProto,
 		inBrowser: inBrowser,
+		devtools: devtools,
 		isIE9: isIE9,
 		isAndroid: isAndroid,
 		get transitionProp () { return transitionProp; },
@@ -2281,13 +2371,15 @@
 		inDoc: inDoc,
 		getAttr: getAttr,
 		getBindAttr: getBindAttr,
+		hasBindAttr: hasBindAttr,
 		before: before,
 		after: after,
 		remove: remove,
 		prepend: prepend,
 		replace: replace,
-		on: on$1,
+		on: on,
 		off: off,
+		setClass: setClass,
 		addClass: addClass,
 		removeClass: removeClass,
 		extractContent: extractContent,
@@ -2297,20 +2389,20 @@
 		findRef: findRef,
 		mapNodeRange: mapNodeRange,
 		removeNodeRange: removeNodeRange,
+		isFragment: isFragment,
+		getOuterHTML: getOuterHTML,
 		mergeOptions: mergeOptions,
 		resolveAsset: resolveAsset,
 		assertAsset: assertAsset,
 		checkComponentAttr: checkComponentAttr,
-		initProp: initProp,
-		assertProp: assertProp,
 		commonTagRE: commonTagRE,
+		reservedTagRE: reservedTagRE,
 		get warn () { return warn; }
 	});
 
 	var uid = 0;
 
 	function initMixin (Vue) {
-
 	  /**
 	   * The main init sequence. This is called for every
 	   * instance, including ones that are created from extended
@@ -2323,7 +2415,6 @@
 	   */
 
 	  Vue.prototype._init = function (options) {
-
 	    options = options || {};
 
 	    this.$el = null;
@@ -2352,7 +2443,7 @@
 	    this._fragmentEnd = null; // @type {Text|Comment}
 
 	    // lifecycle state
-	    this._isCompiled = this._isDestroyed = this._isReady = this._isAttached = this._isBeingDestroyed = false;
+	    this._isCompiled = this._isDestroyed = this._isReady = this._isAttached = this._isBeingDestroyed = this._vForRemoving = false;
 	    this._unlinkFn = null;
 
 	    // context:
@@ -2391,6 +2482,11 @@
 	    // initialize data as empty object.
 	    // it will be filled up in _initScope().
 	    this._data = {};
+
+	    // save raw constructor data before merge
+	    // so that we know which properties are provided at
+	    // instantiation.
+	    this._runtimeData = options.data;
 
 	    // call init hook
 	    this._callHook('init');
@@ -2749,16 +2845,16 @@
 	var allowedKeywordsRE = new RegExp('^(' + allowedKeywords.replace(/,/g, '\\b|') + '\\b)');
 
 	// keywords that don't make sense inside expressions
-	var improperKeywords = 'break,case,class,catch,const,continue,debugger,default,' + 'delete,do,else,export,extends,finally,for,function,if,' + 'import,in,instanceof,let,return,super,switch,throw,try,' + 'var,while,with,yield,enum,await,implements,package,' + 'proctected,static,interface,private,public';
+	var improperKeywords = 'break,case,class,catch,const,continue,debugger,default,' + 'delete,do,else,export,extends,finally,for,function,if,' + 'import,in,instanceof,let,return,super,switch,throw,try,' + 'var,while,with,yield,enum,await,implements,package,' + 'protected,static,interface,private,public';
 	var improperKeywordsRE = new RegExp('^(' + improperKeywords.replace(/,/g, '\\b|') + '\\b)');
 
 	var wsRE = /\s/g;
 	var newlineRE = /\n/g;
-	var saveRE = /[\{,]\s*[\w\$_]+\s*:|('[^']*'|"[^"]*")|new |typeof |void /g;
+	var saveRE = /[\{,]\s*[\w\$_]+\s*:|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*\$\{|\}(?:[^`\\]|\\.)*`|`(?:[^`\\]|\\.)*`)|new |typeof |void /g;
 	var restoreRE = /"(\d+)"/g;
-	var pathTestRE = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*|\['.*?'\]|\[".*?"\]|\[\d+\]|\[[A-Za-z_$][\w$]*\])*$/;
-	var pathReplaceRE = /[^\w$\.]([A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*|\['.*?'\]|\[".*?"\])*)/g;
-	var booleanLiteralRE = /^(true|false)$/;
+	var pathTestRE = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|\['.*?'\]|\[".*?"\]|\[\d+\]|\[[A-Za-z_$][\w$]*\])*$/;
+	var identRE = /[^\w$\.](?:[A-Za-z_$][\w$]*)/g;
+	var booleanLiteralRE = /^(?:true|false)$/;
 
 	/**
 	 * Save / Rewrite / Restore
@@ -2841,7 +2937,7 @@
 	  var body = exp.replace(saveRE, save).replace(wsRE, '');
 	  // rewrite all paths
 	  // pad 1 space here becaue the regex matches 1 extra char
-	  body = (' ' + body).replace(pathReplaceRE, rewrite).replace(restoreRE, restore);
+	  body = (' ' + body).replace(identRE, rewrite).replace(restoreRE, restore);
 	  return makeGetterFn(body);
 	}
 
@@ -2857,7 +2953,9 @@
 
 	function makeGetterFn(body) {
 	  try {
+	    /* eslint-disable no-new-func */
 	    return new Function('scope', 'return ' + body + ';');
+	    /* eslint-enable no-new-func */
 	  } catch (e) {
 	    ("production") !== 'production' && warn('Invalid expression. ' + 'Generated function body: ' + body);
 	  }
@@ -2938,6 +3036,8 @@
 	// before user watchers so that when user watchers are
 	// triggered, the DOM would have already been in updated
 	// state.
+
+	var queueIndex;
 	var queue = [];
 	var userQueue = [];
 	var has = {};
@@ -2967,10 +3067,8 @@
 	  runBatcherQueue(userQueue);
 	  // dev tool hook
 	  /* istanbul ignore if */
-	  if (false) {
-	    if (inBrowser && window.__VUE_DEVTOOLS_GLOBAL_HOOK__) {
-	      window.__VUE_DEVTOOLS_GLOBAL_HOOK__.emit('flush');
-	    }
+	  if (devtools && config.devtools) {
+	    devtools.emit('flush');
 	  }
 	  resetBatcherState();
 	}
@@ -2984,8 +3082,8 @@
 	function runBatcherQueue(queue) {
 	  // do not cache length because more watchers might be pushed
 	  // as we run existing watchers
-	  for (var i = 0; i < queue.length; i++) {
-	    var watcher = queue[i];
+	  for (queueIndex = 0; queueIndex < queue.length; queueIndex++) {
+	    var watcher = queue[queueIndex];
 	    var id = watcher.id;
 	    has[id] = null;
 	    watcher.run();
@@ -3014,20 +3112,20 @@
 	function pushWatcher(watcher) {
 	  var id = watcher.id;
 	  if (has[id] == null) {
-	    // if an internal watcher is pushed, but the internal
-	    // queue is already depleted, we run it immediately.
 	    if (internalQueueDepleted && !watcher.user) {
-	      watcher.run();
-	      return;
-	    }
-	    // push watcher into appropriate queue
-	    var q = watcher.user ? userQueue : queue;
-	    has[id] = q.length;
-	    q.push(watcher);
-	    // queue the flush
-	    if (!waiting) {
-	      waiting = true;
-	      nextTick(flushBatcherQueue);
+	      // an internal watcher triggered by a user watcher...
+	      // let's run it immediately after current user watcher is done.
+	      userQueue.splice(queueIndex + 1, 0, watcher);
+	    } else {
+	      // push watcher into appropriate queue
+	      var q = watcher.user ? userQueue : queue;
+	      has[id] = q.length;
+	      q.push(watcher);
+	      // queue the flush
+	      if (!waiting) {
+	        waiting = true;
+	        nextTick(flushBatcherQueue);
+	      }
 	    }
 	  }
 	}
@@ -3040,7 +3138,7 @@
 	 * This is used for both the $watch() api and directives.
 	 *
 	 * @param {Vue} vm
-	 * @param {String} expression
+	 * @param {String|Function} expOrFn
 	 * @param {Function} cb
 	 * @param {Object} options
 	 *                 - {Array} filters
@@ -3061,13 +3159,15 @@
 	  var isFn = typeof expOrFn === 'function';
 	  this.vm = vm;
 	  vm._watchers.push(this);
-	  this.expression = isFn ? expOrFn.toString() : expOrFn;
+	  this.expression = expOrFn;
 	  this.cb = cb;
 	  this.id = ++uid$2; // uid for batching
 	  this.active = true;
 	  this.dirty = this.lazy; // for lazy watchers
-	  this.deps = Object.create(null);
-	  this.newDeps = null;
+	  this.deps = [];
+	  this.newDeps = [];
+	  this.depIds = Object.create(null);
+	  this.newDepIds = null;
 	  this.prevError = null; // for async error stacks
 	  // parse expression for getter/setter
 	  if (isFn) {
@@ -3083,23 +3183,6 @@
 	  // watchers during vm._digest()
 	  this.queued = this.shallow = false;
 	}
-
-	/**
-	 * Add a dependency to this directive.
-	 *
-	 * @param {Dep} dep
-	 */
-
-	Watcher.prototype.addDep = function (dep) {
-	  var id = dep.id;
-	  if (!this.newDeps[id]) {
-	    this.newDeps[id] = dep;
-	    if (!this.deps[id]) {
-	      this.deps[id] = dep;
-	      dep.addSub(this);
-	    }
-	  }
-	};
 
 	/**
 	 * Evaluate the getter, and re-collect dependencies.
@@ -3176,7 +3259,25 @@
 
 	Watcher.prototype.beforeGet = function () {
 	  Dep.target = this;
-	  this.newDeps = Object.create(null);
+	  this.newDepIds = Object.create(null);
+	  this.newDeps.length = 0;
+	};
+
+	/**
+	 * Add a dependency to this directive.
+	 *
+	 * @param {Dep} dep
+	 */
+
+	Watcher.prototype.addDep = function (dep) {
+	  var id = dep.id;
+	  if (!this.newDepIds[id]) {
+	    this.newDepIds[id] = true;
+	    this.newDeps.push(dep);
+	    if (!this.depIds[id]) {
+	      dep.addSub(this);
+	    }
+	  }
 	};
 
 	/**
@@ -3185,15 +3286,17 @@
 
 	Watcher.prototype.afterGet = function () {
 	  Dep.target = null;
-	  var ids = Object.keys(this.deps);
-	  var i = ids.length;
+	  var i = this.deps.length;
 	  while (i--) {
-	    var id = ids[i];
-	    if (!this.newDeps[id]) {
-	      this.deps[id].removeSub(this);
+	    var dep = this.deps[i];
+	    if (!this.newDepIds[dep.id]) {
+	      dep.removeSub(this);
 	    }
 	  }
+	  this.depIds = this.newDepIds;
+	  var tmp = this.deps;
 	  this.deps = this.newDeps;
+	  this.newDeps = tmp;
 	};
 
 	/**
@@ -3231,11 +3334,11 @@
 	  if (this.active) {
 	    var value = this.get();
 	    if (value !== this.value ||
-	    // Deep watchers and Array watchers should fire even
+	    // Deep watchers and watchers on Object/Arrays should fire even
 	    // when the value is the same, because the value may
 	    // have mutated; but only do so if this is a
 	    // non-shallow update (caused by a vm digest).
-	    (isArray(value) || this.deep) && !this.shallow) {
+	    (isObject(value) || this.deep) && !this.shallow) {
 	      // set new value
 	      var oldValue = this.value;
 	      this.value = value;
@@ -3281,10 +3384,9 @@
 	 */
 
 	Watcher.prototype.depend = function () {
-	  var depIds = Object.keys(this.deps);
-	  var i = depIds.length;
+	  var i = this.deps.length;
 	  while (i--) {
-	    this.deps[depIds[i]].depend();
+	    this.deps[i].depend();
 	  }
 	};
 
@@ -3295,15 +3397,15 @@
 	Watcher.prototype.teardown = function () {
 	  if (this.active) {
 	    // remove self from vm's watcher list
-	    // we can skip this if the vm if being destroyed
-	    // which can improve teardown performance.
-	    if (!this.vm._isBeingDestroyed) {
+	    // this is a somewhat expensive operation so we skip it
+	    // if the vm is being destroyed or is performing a v-for
+	    // re-render (the watcher list is then filtered by v-for).
+	    if (!this.vm._isBeingDestroyed && !this.vm._vForRemoving) {
 	      this.vm._watchers.$remove(this);
 	    }
-	    var depIds = Object.keys(this.deps);
-	    var i = depIds.length;
+	    var i = this.deps.length;
 	    while (i--) {
-	      this.deps[depIds[i]].removeSub(this);
+	      this.deps[i].removeSub(this);
 	    }
 	    this.active = false;
 	    this.vm = this.cb = this.value = null;
@@ -3330,784 +3432,14 @@
 	  }
 	}
 
-	var cloak = {
-	  bind: function bind() {
-	    var el = this.el;
-	    this.vm.$once('hook:compiled', function () {
-	      el.removeAttribute('v-cloak');
-	    });
-	  }
-	};
-
-	var ref = {
-	  bind: function bind() {
-	    ("production") !== 'production' && warn('v-ref:' + this.arg + ' must be used on a child ' + 'component. Found on <' + this.el.tagName.toLowerCase() + '>.');
-	  }
-	};
-
-	var el = {
-
-	  priority: 1500,
+	var text$1 = {
 
 	  bind: function bind() {
-	    /* istanbul ignore if */
-	    if (!this.arg) {
-	      return;
-	    }
-	    var id = this.id = camelize(this.arg);
-	    var refs = (this._scope || this.vm).$els;
-	    if (hasOwn(refs, id)) {
-	      refs[id] = this.el;
-	    } else {
-	      defineReactive(refs, id, this.el);
-	    }
-	  },
-
-	  unbind: function unbind() {
-	    var refs = (this._scope || this.vm).$els;
-	    if (refs[this.id] === this.el) {
-	      refs[this.id] = null;
-	    }
-	  }
-	};
-
-	var prefixes = ['-webkit-', '-moz-', '-ms-'];
-	var camelPrefixes = ['Webkit', 'Moz', 'ms'];
-	var importantRE = /!important;?$/;
-	var propCache = Object.create(null);
-
-	var testEl = null;
-
-	var style = {
-
-	  deep: true,
-
-	  update: function update(value) {
-	    if (typeof value === 'string') {
-	      this.el.style.cssText = value;
-	    } else if (isArray(value)) {
-	      this.handleObject(value.reduce(extend, {}));
-	    } else {
-	      this.handleObject(value || {});
-	    }
-	  },
-
-	  handleObject: function handleObject(value) {
-	    // cache object styles so that only changed props
-	    // are actually updated.
-	    var cache = this.cache || (this.cache = {});
-	    var name, val;
-	    for (name in cache) {
-	      if (!(name in value)) {
-	        this.handleSingle(name, null);
-	        delete cache[name];
-	      }
-	    }
-	    for (name in value) {
-	      val = value[name];
-	      if (val !== cache[name]) {
-	        cache[name] = val;
-	        this.handleSingle(name, val);
-	      }
-	    }
-	  },
-
-	  handleSingle: function handleSingle(prop, value) {
-	    prop = normalize(prop);
-	    if (!prop) return; // unsupported prop
-	    // cast possible numbers/booleans into strings
-	    if (value != null) value += '';
-	    if (value) {
-	      var isImportant = importantRE.test(value) ? 'important' : '';
-	      if (isImportant) {
-	        value = value.replace(importantRE, '').trim();
-	      }
-	      this.el.style.setProperty(prop, value, isImportant);
-	    } else {
-	      this.el.style.removeProperty(prop);
-	    }
-	  }
-
-	};
-
-	/**
-	 * Normalize a CSS property name.
-	 * - cache result
-	 * - auto prefix
-	 * - camelCase -> dash-case
-	 *
-	 * @param {String} prop
-	 * @return {String}
-	 */
-
-	function normalize(prop) {
-	  if (propCache[prop]) {
-	    return propCache[prop];
-	  }
-	  var res = prefix(prop);
-	  propCache[prop] = propCache[res] = res;
-	  return res;
-	}
-
-	/**
-	 * Auto detect the appropriate prefix for a CSS property.
-	 * https://gist.github.com/paulirish/523692
-	 *
-	 * @param {String} prop
-	 * @return {String}
-	 */
-
-	function prefix(prop) {
-	  prop = hyphenate(prop);
-	  var camel = camelize(prop);
-	  var upper = camel.charAt(0).toUpperCase() + camel.slice(1);
-	  if (!testEl) {
-	    testEl = document.createElement('div');
-	  }
-	  if (camel in testEl.style) {
-	    return prop;
-	  }
-	  var i = prefixes.length;
-	  var prefixed;
-	  while (i--) {
-	    prefixed = camelPrefixes[i] + upper;
-	    if (prefixed in testEl.style) {
-	      return prefixes[i] + prop;
-	    }
-	  }
-	}
-
-	// xlink
-	var xlinkNS = 'http://www.w3.org/1999/xlink';
-	var xlinkRE = /^xlink:/;
-
-	// these input element attributes should also set their
-	// corresponding properties
-	var inputProps = {
-	  value: 1,
-	  checked: 1,
-	  selected: 1
-	};
-
-	// these attributes should set a hidden property for
-	// binding v-model to object values
-	var modelProps = {
-	  value: '_value',
-	  'true-value': '_trueValue',
-	  'false-value': '_falseValue'
-	};
-
-	// check for attributes that prohibit interpolations
-	var disallowedInterpAttrRE = /^v-|^:|^@|^(is|transition|transition-mode|debounce|track-by|stagger|enter-stagger|leave-stagger)$/;
-
-	var bind = {
-
-	  priority: 850,
-
-	  bind: function bind() {
-	    var attr = this.arg;
-	    var tag = this.el.tagName;
-	    // should be deep watch on object mode
-	    if (!attr) {
-	      this.deep = true;
-	    }
-	    // handle interpolation bindings
-	    if (this.descriptor.interp) {
-	      // only allow binding on native attributes
-	      if (disallowedInterpAttrRE.test(attr) || attr === 'name' && (tag === 'PARTIAL' || tag === 'SLOT')) {
-	        ("production") !== 'production' && warn(attr + '="' + this.descriptor.raw + '": ' + 'attribute interpolation is not allowed in Vue.js ' + 'directives and special attributes.');
-	        this.el.removeAttribute(attr);
-	        this.invalid = true;
-	      }
-
-	      /* istanbul ignore if */
-	      if (false) {
-	        var raw = attr + '="' + this.descriptor.raw + '": ';
-	        // warn src
-	        if (attr === 'src') {
-	          warn(raw + 'interpolation in "src" attribute will cause ' + 'a 404 request. Use v-bind:src instead.');
-	        }
-
-	        // warn style
-	        if (attr === 'style') {
-	          warn(raw + 'interpolation in "style" attribute will cause ' + 'the attribute to be discarded in Internet Explorer. ' + 'Use v-bind:style instead.');
-	        }
-	      }
-	    }
+	    this.attr = this.el.nodeType === 3 ? 'data' : 'textContent';
 	  },
 
 	  update: function update(value) {
-	    if (this.invalid) {
-	      return;
-	    }
-	    var attr = this.arg;
-	    if (this.arg) {
-	      this.handleSingle(attr, value);
-	    } else {
-	      this.handleObject(value || {});
-	    }
-	  },
-
-	  // share object handler with v-bind:class
-	  handleObject: style.handleObject,
-
-	  handleSingle: function handleSingle(attr, value) {
-	    if (inputProps[attr] && attr in this.el) {
-	      this.el[attr] = attr === 'value' ? value || '' : // IE9 will set input.value to "null" for null...
-	      value;
-	    }
-	    // set model props
-	    var modelProp = modelProps[attr];
-	    if (modelProp) {
-	      this.el[modelProp] = value;
-	      // update v-model if present
-	      var model = this.el.__v_model;
-	      if (model) {
-	        model.listener();
-	      }
-	    }
-	    // do not set value attribute for textarea
-	    if (attr === 'value' && this.el.tagName === 'TEXTAREA') {
-	      this.el.removeAttribute(attr);
-	      return;
-	    }
-	    // update attribute
-	    if (value != null && value !== false) {
-	      if (xlinkRE.test(attr)) {
-	        this.el.setAttributeNS(xlinkNS, attr, value);
-	      } else {
-	        this.el.setAttribute(attr, value);
-	      }
-	    } else {
-	      this.el.removeAttribute(attr);
-	    }
-	  }
-	};
-
-	// keyCode aliases
-	var keyCodes = {
-	  esc: 27,
-	  tab: 9,
-	  enter: 13,
-	  space: 32,
-	  'delete': 46,
-	  up: 38,
-	  left: 37,
-	  right: 39,
-	  down: 40
-	};
-
-	function keyFilter(handler, keys) {
-	  var codes = keys.map(function (key) {
-	    var charCode = key.charCodeAt(0);
-	    if (charCode > 47 && charCode < 58) {
-	      return parseInt(key, 10);
-	    }
-	    if (key.length === 1) {
-	      charCode = key.toUpperCase().charCodeAt(0);
-	      if (charCode > 64 && charCode < 91) {
-	        return charCode;
-	      }
-	    }
-	    return keyCodes[key];
-	  });
-	  return function keyHandler(e) {
-	    if (codes.indexOf(e.keyCode) > -1) {
-	      return handler.call(this, e);
-	    }
-	  };
-	}
-
-	function stopFilter(handler) {
-	  return function stopHandler(e) {
-	    e.stopPropagation();
-	    return handler.call(this, e);
-	  };
-	}
-
-	function preventFilter(handler) {
-	  return function preventHandler(e) {
-	    e.preventDefault();
-	    return handler.call(this, e);
-	  };
-	}
-
-	var on = {
-
-	  acceptStatement: true,
-	  priority: 700,
-
-	  bind: function bind() {
-	    // deal with iframes
-	    if (this.el.tagName === 'IFRAME' && this.arg !== 'load') {
-	      var self = this;
-	      this.iframeBind = function () {
-	        on$1(self.el.contentWindow, self.arg, self.handler);
-	      };
-	      this.on('load', this.iframeBind);
-	    }
-	  },
-
-	  update: function update(handler) {
-	    // stub a noop for v-on with no value,
-	    // e.g. @mousedown.prevent
-	    if (!this.descriptor.raw) {
-	      handler = function () {};
-	    }
-
-	    if (typeof handler !== 'function') {
-	      ("production") !== 'production' && warn('v-on:' + this.arg + '="' + this.expression + '" expects a function value, ' + 'got ' + handler);
-	      return;
-	    }
-
-	    // apply modifiers
-	    if (this.modifiers.stop) {
-	      handler = stopFilter(handler);
-	    }
-	    if (this.modifiers.prevent) {
-	      handler = preventFilter(handler);
-	    }
-	    // key filter
-	    var keys = Object.keys(this.modifiers).filter(function (key) {
-	      return key !== 'stop' && key !== 'prevent';
-	    });
-	    if (keys.length) {
-	      handler = keyFilter(handler, keys);
-	    }
-
-	    this.reset();
-	    this.handler = handler;
-
-	    if (this.iframeBind) {
-	      this.iframeBind();
-	    } else {
-	      on$1(this.el, this.arg, this.handler);
-	    }
-	  },
-
-	  reset: function reset() {
-	    var el = this.iframeBind ? this.el.contentWindow : this.el;
-	    if (this.handler) {
-	      off(el, this.arg, this.handler);
-	    }
-	  },
-
-	  unbind: function unbind() {
-	    this.reset();
-	  }
-	};
-
-	var checkbox = {
-
-	  bind: function bind() {
-	    var self = this;
-	    var el = this.el;
-
-	    this.getValue = function () {
-	      return el.hasOwnProperty('_value') ? el._value : self.params.number ? toNumber(el.value) : el.value;
-	    };
-
-	    function getBooleanValue() {
-	      var val = el.checked;
-	      if (val && el.hasOwnProperty('_trueValue')) {
-	        return el._trueValue;
-	      }
-	      if (!val && el.hasOwnProperty('_falseValue')) {
-	        return el._falseValue;
-	      }
-	      return val;
-	    }
-
-	    this.listener = function () {
-	      var model = self._watcher.value;
-	      if (isArray(model)) {
-	        var val = self.getValue();
-	        if (el.checked) {
-	          if (indexOf(model, val) < 0) {
-	            model.push(val);
-	          }
-	        } else {
-	          model.$remove(val);
-	        }
-	      } else {
-	        self.set(getBooleanValue());
-	      }
-	    };
-
-	    this.on('change', this.listener);
-	    if (el.checked) {
-	      this.afterBind = this.listener;
-	    }
-	  },
-
-	  update: function update(value) {
-	    var el = this.el;
-	    if (isArray(value)) {
-	      el.checked = indexOf(value, this.getValue()) > -1;
-	    } else {
-	      if (el.hasOwnProperty('_trueValue')) {
-	        el.checked = looseEqual(value, el._trueValue);
-	      } else {
-	        el.checked = !!value;
-	      }
-	    }
-	  }
-	};
-
-	var select = {
-
-	  bind: function bind() {
-	    var self = this;
-	    var el = this.el;
-
-	    // method to force update DOM using latest value.
-	    this.forceUpdate = function () {
-	      if (self._watcher) {
-	        self.update(self._watcher.get());
-	      }
-	    };
-
-	    // check if this is a multiple select
-	    var multiple = this.multiple = el.hasAttribute('multiple');
-
-	    // attach listener
-	    this.listener = function () {
-	      var value = getValue(el, multiple);
-	      value = self.params.number ? isArray(value) ? value.map(toNumber) : toNumber(value) : value;
-	      self.set(value);
-	    };
-	    this.on('change', this.listener);
-
-	    // if has initial value, set afterBind
-	    var initValue = getValue(el, multiple, true);
-	    if (multiple && initValue.length || !multiple && initValue !== null) {
-	      this.afterBind = this.listener;
-	    }
-
-	    // All major browsers except Firefox resets
-	    // selectedIndex with value -1 to 0 when the element
-	    // is appended to a new parent, therefore we have to
-	    // force a DOM update whenever that happens...
-	    this.vm.$on('hook:attached', this.forceUpdate);
-	  },
-
-	  update: function update(value) {
-	    var el = this.el;
-	    el.selectedIndex = -1;
-	    var multi = this.multiple && isArray(value);
-	    var options = el.options;
-	    var i = options.length;
-	    var op, val;
-	    while (i--) {
-	      op = options[i];
-	      val = op.hasOwnProperty('_value') ? op._value : op.value;
-	      /* eslint-disable eqeqeq */
-	      op.selected = multi ? indexOf$1(value, val) > -1 : looseEqual(value, val);
-	      /* eslint-enable eqeqeq */
-	    }
-	  },
-
-	  unbind: function unbind() {
-	    /* istanbul ignore next */
-	    this.vm.$off('hook:attached', this.forceUpdate);
-	  }
-	};
-
-	/**
-	 * Get select value
-	 *
-	 * @param {SelectElement} el
-	 * @param {Boolean} multi
-	 * @param {Boolean} init
-	 * @return {Array|*}
-	 */
-
-	function getValue(el, multi, init) {
-	  var res = multi ? [] : null;
-	  var op, val, selected;
-	  for (var i = 0, l = el.options.length; i < l; i++) {
-	    op = el.options[i];
-	    selected = init ? op.hasAttribute('selected') : op.selected;
-	    if (selected) {
-	      val = op.hasOwnProperty('_value') ? op._value : op.value;
-	      if (multi) {
-	        res.push(val);
-	      } else {
-	        return val;
-	      }
-	    }
-	  }
-	  return res;
-	}
-
-	/**
-	 * Native Array.indexOf uses strict equal, but in this
-	 * case we need to match string/numbers with custom equal.
-	 *
-	 * @param {Array} arr
-	 * @param {*} val
-	 */
-
-	function indexOf$1(arr, val) {
-	  var i = arr.length;
-	  while (i--) {
-	    if (looseEqual(arr[i], val)) {
-	      return i;
-	    }
-	  }
-	  return -1;
-	}
-
-	var radio = {
-
-	  bind: function bind() {
-	    var self = this;
-	    var el = this.el;
-
-	    this.getValue = function () {
-	      // value overwrite via v-bind:value
-	      if (el.hasOwnProperty('_value')) {
-	        return el._value;
-	      }
-	      var val = el.value;
-	      if (self.params.number) {
-	        val = toNumber(val);
-	      }
-	      return val;
-	    };
-
-	    this.listener = function () {
-	      self.set(self.getValue());
-	    };
-	    this.on('change', this.listener);
-
-	    if (el.checked) {
-	      this.afterBind = this.listener;
-	    }
-	  },
-
-	  update: function update(value) {
-	    this.el.checked = looseEqual(value, this.getValue());
-	  }
-	};
-
-	var text$2 = {
-
-	  bind: function bind() {
-	    var self = this;
-	    var el = this.el;
-	    var isRange = el.type === 'range';
-	    var lazy = this.params.lazy;
-	    var number = this.params.number;
-	    var debounce = this.params.debounce;
-
-	    // handle composition events.
-	    //   http://blog.evanyou.me/2014/01/03/composition-event/
-	    // skip this for Android because it handles composition
-	    // events quite differently. Android doesn't trigger
-	    // composition events for language input methods e.g.
-	    // Chinese, but instead triggers them for spelling
-	    // suggestions... (see Discussion/#162)
-	    var composing = false;
-	    if (!isAndroid && !isRange) {
-	      this.on('compositionstart', function () {
-	        composing = true;
-	      });
-	      this.on('compositionend', function () {
-	        composing = false;
-	        // in IE11 the "compositionend" event fires AFTER
-	        // the "input" event, so the input handler is blocked
-	        // at the end... have to call it here.
-	        //
-	        // #1327: in lazy mode this is unecessary.
-	        if (!lazy) {
-	          self.listener();
-	        }
-	      });
-	    }
-
-	    // prevent messing with the input when user is typing,
-	    // and force update on blur.
-	    this.focused = false;
-	    if (!isRange) {
-	      this.on('focus', function () {
-	        self.focused = true;
-	      });
-	      this.on('blur', function () {
-	        self.focused = false;
-	        self.listener();
-	      });
-	    }
-
-	    // Now attach the main listener
-	    this.listener = function () {
-	      if (composing) return;
-	      var val = number || isRange ? toNumber(el.value) : el.value;
-	      self.set(val);
-	      // force update on next tick to avoid lock & same value
-	      // also only update when user is not typing
-	      nextTick(function () {
-	        if (self._bound && !self.focused) {
-	          self.update(self._watcher.value);
-	        }
-	      });
-	    };
-
-	    // apply debounce
-	    if (debounce) {
-	      this.listener = _debounce(this.listener, debounce);
-	    }
-
-	    // Support jQuery events, since jQuery.trigger() doesn't
-	    // trigger native events in some cases and some plugins
-	    // rely on $.trigger()
-	    //
-	    // We want to make sure if a listener is attached using
-	    // jQuery, it is also removed with jQuery, that's why
-	    // we do the check for each directive instance and
-	    // store that check result on itself. This also allows
-	    // easier test coverage control by unsetting the global
-	    // jQuery variable in tests.
-	    this.hasjQuery = typeof jQuery === 'function';
-	    if (this.hasjQuery) {
-	      jQuery(el).on('change', this.listener);
-	      if (!lazy) {
-	        jQuery(el).on('input', this.listener);
-	      }
-	    } else {
-	      this.on('change', this.listener);
-	      if (!lazy) {
-	        this.on('input', this.listener);
-	      }
-	    }
-
-	    // IE9 doesn't fire input event on backspace/del/cut
-	    if (!lazy && isIE9) {
-	      this.on('cut', function () {
-	        nextTick(self.listener);
-	      });
-	      this.on('keyup', function (e) {
-	        if (e.keyCode === 46 || e.keyCode === 8) {
-	          self.listener();
-	        }
-	      });
-	    }
-
-	    // set initial value if present
-	    if (el.hasAttribute('value') || el.tagName === 'TEXTAREA' && el.value.trim()) {
-	      this.afterBind = this.listener;
-	    }
-	  },
-
-	  update: function update(value) {
-	    this.el.value = _toString(value);
-	  },
-
-	  unbind: function unbind() {
-	    var el = this.el;
-	    if (this.hasjQuery) {
-	      jQuery(el).off('change', this.listener);
-	      jQuery(el).off('input', this.listener);
-	    }
-	  }
-	};
-
-	var handlers = {
-	  text: text$2,
-	  radio: radio,
-	  select: select,
-	  checkbox: checkbox
-	};
-
-	var model = {
-
-	  priority: 800,
-	  twoWay: true,
-	  handlers: handlers,
-	  params: ['lazy', 'number', 'debounce'],
-
-	  /**
-	   * Possible elements:
-	   *   <select>
-	   *   <textarea>
-	   *   <input type="*">
-	   *     - text
-	   *     - checkbox
-	   *     - radio
-	   *     - number
-	   */
-
-	  bind: function bind() {
-	    // friendly warning...
-	    this.checkFilters();
-	    if (this.hasRead && !this.hasWrite) {
-	      ("production") !== 'production' && warn('It seems you are using a read-only filter with ' + 'v-model. You might want to use a two-way filter ' + 'to ensure correct behavior.');
-	    }
-	    var el = this.el;
-	    var tag = el.tagName;
-	    var handler;
-	    if (tag === 'INPUT') {
-	      handler = handlers[el.type] || handlers.text;
-	    } else if (tag === 'SELECT') {
-	      handler = handlers.select;
-	    } else if (tag === 'TEXTAREA') {
-	      handler = handlers.text;
-	    } else {
-	      ("production") !== 'production' && warn('v-model does not support element type: ' + tag);
-	      return;
-	    }
-	    el.__v_model = this;
-	    handler.bind.call(this);
-	    this.update = handler.update;
-	    this._unbind = handler.unbind;
-	  },
-
-	  /**
-	   * Check read/write filter stats.
-	   */
-
-	  checkFilters: function checkFilters() {
-	    var filters = this.filters;
-	    if (!filters) return;
-	    var i = filters.length;
-	    while (i--) {
-	      var filter = resolveAsset(this.vm.$options, 'filters', filters[i].name);
-	      if (typeof filter === 'function' || filter.read) {
-	        this.hasRead = true;
-	      }
-	      if (filter.write) {
-	        this.hasWrite = true;
-	      }
-	    }
-	  },
-
-	  unbind: function unbind() {
-	    this.el.__v_model = null;
-	    this._unbind && this._unbind();
-	  }
-	};
-
-	var show = {
-
-	  bind: function bind() {
-	    // check else block
-	    var next = this.el.nextElementSibling;
-	    if (next && getAttr(next, 'v-else') !== null) {
-	      this.elseEl = next;
-	    }
-	  },
-
-	  update: function update(value) {
-	    this.apply(this.el, value);
-	    if (this.elseEl) {
-	      this.apply(this.elseEl, !value);
-	    }
-	  },
-
-	  apply: function apply(el, value) {
-	    applyTransition(el, value ? 1 : -1, function () {
-	      el.style.display = value ? '' : 'none';
-	    }, this.vm);
+	    this.el[this.attr] = _toString(value);
 	  }
 	};
 
@@ -4138,11 +3470,11 @@
 	 */
 
 	function isRealTemplate(node) {
-	  return isTemplate(node) && node.content instanceof DocumentFragment;
+	  return isTemplate(node) && isFragment(node.content);
 	}
 
-	var tagRE$1 = /<([\w:]+)/;
-	var entityRE = /&\w+;|&#\d+;|&#x[\dA-F]+;/;
+	var tagRE$1 = /<([\w:-]+)/;
+	var entityRE = /&#?\w+?;/;
 
 	/**
 	 * Convert a string template to a DocumentFragment.
@@ -4156,7 +3488,8 @@
 
 	function stringToFragment(templateString, raw) {
 	  // try a cache hit first
-	  var hit = templateCache.get(templateString);
+	  var cacheKey = raw ? templateString : templateString.trim();
+	  var hit = templateCache.get(cacheKey);
 	  if (hit) {
 	    return hit;
 	  }
@@ -4169,7 +3502,6 @@
 	    // text only, return a single text node.
 	    frag.appendChild(document.createTextNode(templateString));
 	  } else {
-
 	    var tag = tagMatch && tagMatch[1];
 	    var wrap = map[tag] || map.efault;
 	    var depth = wrap[0];
@@ -4177,9 +3509,6 @@
 	    var suffix = wrap[2];
 	    var node = document.createElement('div');
 
-	    if (!raw) {
-	      templateString = templateString.trim();
-	    }
 	    node.innerHTML = prefix + templateString + suffix;
 	    while (depth--) {
 	      node = node.lastChild;
@@ -4192,8 +3521,10 @@
 	      frag.appendChild(child);
 	    }
 	  }
-
-	  templateCache.put(templateString, frag);
+	  if (!raw) {
+	    trimNode(frag);
+	  }
+	  templateCache.put(cacheKey, frag);
 	  return frag;
 	}
 
@@ -4264,6 +3595,7 @@
 	 */
 
 	function cloneNode(node) {
+	  /* istanbul ignore if */
 	  if (!node.querySelectorAll) {
 	    return node.cloneNode();
 	  }
@@ -4326,7 +3658,7 @@
 
 	  // if the template is already a document fragment,
 	  // do nothing
-	  if (template instanceof DocumentFragment) {
+	  if (isFragment(template)) {
 	    trimNode(template);
 	    return shouldClone ? cloneNode(template) : template;
 	  }
@@ -4361,6 +3693,44 @@
 	  parseTemplate: parseTemplate
 	});
 
+	var html = {
+
+	  bind: function bind() {
+	    // a comment node means this is a binding for
+	    // {{{ inline unescaped html }}}
+	    if (this.el.nodeType === 8) {
+	      // hold nodes
+	      this.nodes = [];
+	      // replace the placeholder with proper anchor
+	      this.anchor = createAnchor('v-html');
+	      replace(this.el, this.anchor);
+	    }
+	  },
+
+	  update: function update(value) {
+	    value = _toString(value);
+	    if (this.nodes) {
+	      this.swap(value);
+	    } else {
+	      this.el.innerHTML = value;
+	    }
+	  },
+
+	  swap: function swap(value) {
+	    // remove old nodes
+	    var i = this.nodes.length;
+	    while (i--) {
+	      remove(this.nodes[i]);
+	    }
+	    // convert new value to a fragment
+	    // do not attempt to retrieve from id selector
+	    var frag = parseTemplate(value, true, true);
+	    // save a reference to these nodes so we can remove later
+	    this.nodes = toArray(frag.childNodes);
+	    before(frag, this.anchor);
+	  }
+	};
+
 	/**
 	 * Abstraction for a partially-compiled fragment.
 	 * Can optionally compile content with a child scope.
@@ -4370,6 +3740,7 @@
 	 * @param {DocumentFragment} frag
 	 * @param {Vue} [host]
 	 * @param {Object} [scope]
+	 * @param {Fragment} [parentFrag]
 	 */
 	function Fragment(linker, vm, frag, host, scope, parentFrag) {
 	  this.children = [];
@@ -4384,7 +3755,7 @@
 	  this.unlink = linker(vm, frag, host, scope, this);
 	  var single = this.single = frag.childNodes.length === 1 &&
 	  // do not go single mode if the only node is an anchor
-	  !frag.childNodes[0].__vue_anchor;
+	  !frag.childNodes[0].__v_anchor;
 	  if (single) {
 	    this.node = frag.childNodes[0];
 	    this.before = singleBefore;
@@ -4398,7 +3769,7 @@
 	    this.before = multiBefore;
 	    this.remove = multiRemove;
 	  }
-	  this.node.__vfrag__ = this;
+	  this.node.__v_frag = this;
 	}
 
 	/**
@@ -4411,23 +3782,12 @@
 
 	Fragment.prototype.callHook = function (hook) {
 	  var i, l;
-	  for (i = 0, l = this.children.length; i < l; i++) {
-	    hook(this.children[i]);
-	  }
 	  for (i = 0, l = this.childFrags.length; i < l; i++) {
 	    this.childFrags[i].callHook(hook);
 	  }
-	};
-
-	/**
-	 * Destroy the fragment.
-	 */
-
-	Fragment.prototype.destroy = function () {
-	  if (this.parentFrag) {
-	    this.parentFrag.childFrags.$remove(this);
+	  for (i = 0, l = this.children.length; i < l; i++) {
+	    hook(this.children[i]);
 	  }
-	  this.unlink();
 	};
 
 	/**
@@ -4454,7 +3814,7 @@
 	  this.inserted = false;
 	  var shouldCallRemove = inDoc(this.node);
 	  var self = this;
-	  self.callHook(destroyChild);
+	  this.beforeRemove();
 	  removeWithTransition(this.node, this.vm, function () {
 	    if (shouldCallRemove) {
 	      self.callHook(detach);
@@ -4490,7 +3850,7 @@
 	  this.inserted = false;
 	  var self = this;
 	  var shouldCallRemove = inDoc(this.node);
-	  self.callHook(destroyChild);
+	  this.beforeRemove();
 	  removeNodeRange(this.node, this.end, this.vm, this.frag, function () {
 	    if (shouldCallRemove) {
 	      self.callHook(detach);
@@ -4500,29 +3860,55 @@
 	}
 
 	/**
+	 * Prepare the fragment for removal.
+	 */
+
+	Fragment.prototype.beforeRemove = function () {
+	  var i, l;
+	  for (i = 0, l = this.childFrags.length; i < l; i++) {
+	    // call the same method recursively on child
+	    // fragments, depth-first
+	    this.childFrags[i].beforeRemove(false);
+	  }
+	  for (i = 0, l = this.children.length; i < l; i++) {
+	    // Call destroy for all contained instances,
+	    // with remove:false and defer:true.
+	    // Defer is necessary because we need to
+	    // keep the children to call detach hooks
+	    // on them.
+	    this.children[i].$destroy(false, true);
+	  }
+	  var dirs = this.unlink.dirs;
+	  for (i = 0, l = dirs.length; i < l; i++) {
+	    // disable the watchers on all the directives
+	    // so that the rendered content stays the same
+	    // during removal.
+	    dirs[i]._watcher && dirs[i]._watcher.teardown();
+	  }
+	};
+
+	/**
+	 * Destroy the fragment.
+	 */
+
+	Fragment.prototype.destroy = function () {
+	  if (this.parentFrag) {
+	    this.parentFrag.childFrags.$remove(this);
+	  }
+	  this.node.__v_frag = null;
+	  this.unlink();
+	};
+
+	/**
 	 * Call attach hook for a Vue instance.
 	 *
 	 * @param {Vue} child
 	 */
 
 	function attach(child) {
-	  if (!child._isAttached) {
+	  if (!child._isAttached && inDoc(child.$el)) {
 	    child._callHook('attached');
 	  }
-	}
-
-	/**
-	 * Call destroy for all contained instances,
-	 * with remove:false and defer:true.
-	 * Defer is necessary because we need to
-	 * keep the children to call detach hooks
-	 * on them.
-	 *
-	 * @param {Vue} child
-	 */
-
-	function destroyChild(child) {
-	  child.$destroy(false, true);
 	}
 
 	/**
@@ -4532,7 +3918,7 @@
 	 */
 
 	function detach(child) {
-	  if (child._isAttached) {
+	  if (child._isAttached && !inDoc(child.$el)) {
 	    child._callHook('detached');
 	  }
 	}
@@ -4561,7 +3947,7 @@
 	  var linker;
 	  var cid = vm.constructor.cid;
 	  if (cid > 0) {
-	    var cacheId = cid + (isString ? el : el.outerHTML);
+	    var cacheId = cid + (isString ? el : getOuterHTML(el));
 	    linker = linkerCache.get(cacheId);
 	    if (!linker) {
 	      linker = compile(template, vm.$options, true);
@@ -4586,78 +3972,29 @@
 	  return new Fragment(this.linker, this.vm, frag, host, scope, parentFrag);
 	};
 
-	var vIf = {
+	var ON = 700;
+	var MODEL = 800;
+	var BIND = 850;
+	var TRANSITION = 1100;
+	var EL = 1500;
+	var COMPONENT = 1500;
+	var PARTIAL = 1750;
+	var FOR = 2000;
+	var IF = 2000;
+	var SLOT = 2100;
 
-	  priority: 2000,
-
-	  bind: function bind() {
-	    var el = this.el;
-	    if (!el.__vue__) {
-	      // check else block
-	      var next = el.nextElementSibling;
-	      if (next && getAttr(next, 'v-else') !== null) {
-	        remove(next);
-	        this.elseFactory = new FragmentFactory(this.vm, next);
-	      }
-	      // check main block
-	      this.anchor = createAnchor('v-if');
-	      replace(el, this.anchor);
-	      this.factory = new FragmentFactory(this.vm, el);
-	    } else {
-	      ("production") !== 'production' && warn('v-if="' + this.expression + '" cannot be ' + 'used on an instance root element.');
-	      this.invalid = true;
-	    }
-	  },
-
-	  update: function update(value) {
-	    if (this.invalid) return;
-	    if (value) {
-	      if (!this.frag) {
-	        this.insert();
-	      }
-	    } else {
-	      this.remove();
-	    }
-	  },
-
-	  insert: function insert() {
-	    if (this.elseFrag) {
-	      this.elseFrag.remove();
-	      this.elseFrag = null;
-	    }
-	    this.frag = this.factory.create(this._host, this._scope, this._frag);
-	    this.frag.before(this.anchor);
-	  },
-
-	  remove: function remove() {
-	    if (this.frag) {
-	      this.frag.remove();
-	      this.frag = null;
-	    }
-	    if (this.elseFactory && !this.elseFrag) {
-	      this.elseFrag = this.elseFactory.create(this._host, this._scope, this._frag);
-	      this.elseFrag.before(this.anchor);
-	    }
-	  },
-
-	  unbind: function unbind() {
-	    if (this.frag) {
-	      this.frag.destroy();
-	    }
-	  }
-	};
-
-	var uid$1 = 0;
+	var uid$3 = 0;
 
 	var vFor = {
 
-	  priority: 2000,
+	  priority: FOR,
+	  terminal: true,
 
 	  params: ['track-by', 'stagger', 'enter-stagger', 'leave-stagger'],
 
 	  bind: function bind() {
-	    // support "item in items" syntax
-	    var inMatch = this.expression.match(/(.*) in (.*)/);
+	    // support "item in/of items" syntax
+	    var inMatch = this.expression.match(/(.*) (?:in|of) (.*)/);
 	    if (inMatch) {
 	      var itMatch = inMatch[1].match(/\((.*),(.*)\)/);
 	      if (itMatch) {
@@ -4675,7 +4012,7 @@
 	    }
 
 	    // uid as a cache identifier
-	    this.id = '__v-for__' + ++uid$1;
+	    this.id = '__v-for__' + ++uid$3;
 
 	    // check if this is an option list,
 	    // so that we know if we need to update the <select>'s
@@ -4761,7 +4098,9 @@
 	        // update data for track-by, object repeat &
 	        // primitive values.
 	        if (trackByKey || convertedFromObject || primitive) {
-	          frag.scope[alias] = value;
+	          withoutConversion(function () {
+	            frag.scope[alias] = value;
+	          });
 	        }
 	      } else {
 	        // new isntance
@@ -4784,12 +4123,22 @@
 	    // from cache)
 	    var removalIndex = 0;
 	    var totalRemoved = oldFrags.length - frags.length;
+	    // when removing a large number of fragments, watcher removal
+	    // turns out to be a perf bottleneck, so we batch the watcher
+	    // removals into a single filter call!
+	    this.vm._vForRemoving = true;
 	    for (i = 0, l = oldFrags.length; i < l; i++) {
 	      frag = oldFrags[i];
 	      if (!frag.reused) {
 	        this.deleteCachedFrag(frag);
 	        this.remove(frag, removalIndex++, totalRemoved, inDocument);
 	      }
+	    }
+	    this.vm._vForRemoving = false;
+	    if (removalIndex) {
+	      this.vm._watchers = this.vm._watchers.filter(function (w) {
+	        return w.active;
+	      });
 	    }
 
 	    // Final pass, move/insert new fragments into the
@@ -4841,7 +4190,11 @@
 	    // for two-way binding on alias
 	    scope.$forContext = this;
 	    // define scope properties
-	    defineReactive(scope, alias, value);
+	    // important: define the scope alias without forced conversion
+	    // so that frozen data structures remain non-reactive.
+	    withoutConversion(function () {
+	      defineReactive(scope, alias, value);
+	    });
 	    defineReactive(scope, '$index', index);
 	    if (key) {
 	      defineReactive(scope, '$key', key);
@@ -4915,7 +4268,7 @@
 	      var anchor = frag.staggerAnchor;
 	      if (!anchor) {
 	        anchor = frag.staggerAnchor = createAnchor('stagger-anchor');
-	        anchor.__vfrag__ = frag;
+	        anchor.__v_frag = frag;
 	      }
 	      after(anchor, prevEl);
 	      var op = frag.staggerCb = cancellable(function () {
@@ -4970,6 +4323,14 @@
 	   */
 
 	  move: function move(frag, prevEl) {
+	    // fix a common issue with Sortable:
+	    // if prevEl doesn't have nextSibling, this means it's
+	    // been dragged after the end anchor. Just re-position
+	    // the end anchor to the end of the container.
+	    /* istanbul ignore if */
+	    if (!prevEl.nextSibling) {
+	      this.end.parentNode.appendChild(this.end);
+	    }
 	    frag.before(prevEl.nextSibling, false);
 	  },
 
@@ -5113,7 +4474,7 @@
 	      }
 	      return res;
 	    } else {
-	      if (typeof value === 'number') {
+	      if (typeof value === 'number' && !isNaN(value)) {
 	        value = range(value);
 	      }
 	      return value || [];
@@ -5156,12 +4517,12 @@
 	  var el = frag.node.previousSibling;
 	  /* istanbul ignore if */
 	  if (!el) return;
-	  frag = el.__vfrag__;
+	  frag = el.__v_frag;
 	  while ((!frag || frag.forId !== id || !frag.inserted) && el !== anchor) {
 	    el = el.previousSibling;
 	    /* istanbul ignore if */
 	    if (!el) return;
-	    frag = el.__vfrag__;
+	    frag = el.__v_frag;
 	  }
 	  return frag;
 	}
@@ -5193,7 +4554,7 @@
 
 	function range(n) {
 	  var i = -1;
-	  var ret = new Array(n);
+	  var ret = new Array(Math.floor(n));
 	  while (++i < n) {
 	    ret[i] = i;
 	  }
@@ -5206,68 +4567,1701 @@
 	  };
 	}
 
-	var html = {
+	var vIf = {
+
+	  priority: IF,
+	  terminal: true,
 
 	  bind: function bind() {
-	    // a comment node means this is a binding for
-	    // {{{ inline unescaped html }}}
-	    if (this.el.nodeType === 8) {
-	      // hold nodes
-	      this.nodes = [];
-	      // replace the placeholder with proper anchor
-	      this.anchor = createAnchor('v-html');
-	      replace(this.el, this.anchor);
+	    var el = this.el;
+	    if (!el.__vue__) {
+	      // check else block
+	      var next = el.nextElementSibling;
+	      if (next && getAttr(next, 'v-else') !== null) {
+	        remove(next);
+	        this.elseEl = next;
+	      }
+	      // check main block
+	      this.anchor = createAnchor('v-if');
+	      replace(el, this.anchor);
+	    } else {
+	      ("production") !== 'production' && warn('v-if="' + this.expression + '" cannot be ' + 'used on an instance root element.');
+	      this.invalid = true;
 	    }
 	  },
 
 	  update: function update(value) {
-	    value = _toString(value);
-	    if (this.nodes) {
-	      this.swap(value);
+	    if (this.invalid) return;
+	    if (value) {
+	      if (!this.frag) {
+	        this.insert();
+	      }
 	    } else {
-	      this.el.innerHTML = value;
+	      this.remove();
 	    }
 	  },
 
-	  swap: function swap(value) {
-	    // remove old nodes
-	    var i = this.nodes.length;
-	    while (i--) {
-	      remove(this.nodes[i]);
+	  insert: function insert() {
+	    if (this.elseFrag) {
+	      this.elseFrag.remove();
+	      this.elseFrag = null;
 	    }
-	    // convert new value to a fragment
-	    // do not attempt to retrieve from id selector
-	    var frag = parseTemplate(value, true, true);
-	    // save a reference to these nodes so we can remove later
-	    this.nodes = toArray(frag.childNodes);
-	    before(frag, this.anchor);
+	    // lazy init factory
+	    if (!this.factory) {
+	      this.factory = new FragmentFactory(this.vm, this.el);
+	    }
+	    this.frag = this.factory.create(this._host, this._scope, this._frag);
+	    this.frag.before(this.anchor);
+	  },
+
+	  remove: function remove() {
+	    if (this.frag) {
+	      this.frag.remove();
+	      this.frag = null;
+	    }
+	    if (this.elseEl && !this.elseFrag) {
+	      if (!this.elseFactory) {
+	        this.elseFactory = new FragmentFactory(this.elseEl._context || this.vm, this.elseEl);
+	      }
+	      this.elseFrag = this.elseFactory.create(this._host, this._scope, this._frag);
+	      this.elseFrag.before(this.anchor);
+	    }
+	  },
+
+	  unbind: function unbind() {
+	    if (this.frag) {
+	      this.frag.destroy();
+	    }
+	    if (this.elseFrag) {
+	      this.elseFrag.destroy();
+	    }
 	  }
 	};
 
-	var text = {
+	var show = {
 
 	  bind: function bind() {
-	    this.attr = this.el.nodeType === 3 ? 'data' : 'textContent';
+	    // check else block
+	    var next = this.el.nextElementSibling;
+	    if (next && getAttr(next, 'v-else') !== null) {
+	      this.elseEl = next;
+	    }
 	  },
 
 	  update: function update(value) {
-	    this.el[this.attr] = _toString(value);
+	    this.apply(this.el, value);
+	    if (this.elseEl) {
+	      this.apply(this.elseEl, !value);
+	    }
+	  },
+
+	  apply: function apply(el, value) {
+	    if (inDoc(el)) {
+	      applyTransition(el, value ? 1 : -1, toggle, this.vm);
+	    } else {
+	      toggle();
+	    }
+	    function toggle() {
+	      el.style.display = value ? '' : 'none';
+	    }
+	  }
+	};
+
+	var text$2 = {
+
+	  bind: function bind() {
+	    var self = this;
+	    var el = this.el;
+	    var isRange = el.type === 'range';
+	    var lazy = this.params.lazy;
+	    var number = this.params.number;
+	    var debounce = this.params.debounce;
+
+	    // handle composition events.
+	    //   http://blog.evanyou.me/2014/01/03/composition-event/
+	    // skip this for Android because it handles composition
+	    // events quite differently. Android doesn't trigger
+	    // composition events for language input methods e.g.
+	    // Chinese, but instead triggers them for spelling
+	    // suggestions... (see Discussion/#162)
+	    var composing = false;
+	    if (!isAndroid && !isRange) {
+	      this.on('compositionstart', function () {
+	        composing = true;
+	      });
+	      this.on('compositionend', function () {
+	        composing = false;
+	        // in IE11 the "compositionend" event fires AFTER
+	        // the "input" event, so the input handler is blocked
+	        // at the end... have to call it here.
+	        //
+	        // #1327: in lazy mode this is unecessary.
+	        if (!lazy) {
+	          self.listener();
+	        }
+	      });
+	    }
+
+	    // prevent messing with the input when user is typing,
+	    // and force update on blur.
+	    this.focused = false;
+	    if (!isRange && !lazy) {
+	      this.on('focus', function () {
+	        self.focused = true;
+	      });
+	      this.on('blur', function () {
+	        self.focused = false;
+	        // do not sync value after fragment removal (#2017)
+	        if (!self._frag || self._frag.inserted) {
+	          self.rawListener();
+	        }
+	      });
+	    }
+
+	    // Now attach the main listener
+	    this.listener = this.rawListener = function () {
+	      if (composing || !self._bound) {
+	        return;
+	      }
+	      var val = number || isRange ? toNumber(el.value) : el.value;
+	      self.set(val);
+	      // force update on next tick to avoid lock & same value
+	      // also only update when user is not typing
+	      nextTick(function () {
+	        if (self._bound && !self.focused) {
+	          self.update(self._watcher.value);
+	        }
+	      });
+	    };
+
+	    // apply debounce
+	    if (debounce) {
+	      this.listener = _debounce(this.listener, debounce);
+	    }
+
+	    // Support jQuery events, since jQuery.trigger() doesn't
+	    // trigger native events in some cases and some plugins
+	    // rely on $.trigger()
+	    //
+	    // We want to make sure if a listener is attached using
+	    // jQuery, it is also removed with jQuery, that's why
+	    // we do the check for each directive instance and
+	    // store that check result on itself. This also allows
+	    // easier test coverage control by unsetting the global
+	    // jQuery variable in tests.
+	    this.hasjQuery = typeof jQuery === 'function';
+	    if (this.hasjQuery) {
+	      var method = jQuery.fn.on ? 'on' : 'bind';
+	      jQuery(el)[method]('change', this.rawListener);
+	      if (!lazy) {
+	        jQuery(el)[method]('input', this.listener);
+	      }
+	    } else {
+	      this.on('change', this.rawListener);
+	      if (!lazy) {
+	        this.on('input', this.listener);
+	      }
+	    }
+
+	    // IE9 doesn't fire input event on backspace/del/cut
+	    if (!lazy && isIE9) {
+	      this.on('cut', function () {
+	        nextTick(self.listener);
+	      });
+	      this.on('keyup', function (e) {
+	        if (e.keyCode === 46 || e.keyCode === 8) {
+	          self.listener();
+	        }
+	      });
+	    }
+
+	    // set initial value if present
+	    if (el.hasAttribute('value') || el.tagName === 'TEXTAREA' && el.value.trim()) {
+	      this.afterBind = this.listener;
+	    }
+	  },
+
+	  update: function update(value) {
+	    this.el.value = _toString(value);
+	  },
+
+	  unbind: function unbind() {
+	    var el = this.el;
+	    if (this.hasjQuery) {
+	      var method = jQuery.fn.off ? 'off' : 'unbind';
+	      jQuery(el)[method]('change', this.listener);
+	      jQuery(el)[method]('input', this.listener);
+	    }
+	  }
+	};
+
+	var radio = {
+
+	  bind: function bind() {
+	    var self = this;
+	    var el = this.el;
+
+	    this.getValue = function () {
+	      // value overwrite via v-bind:value
+	      if (el.hasOwnProperty('_value')) {
+	        return el._value;
+	      }
+	      var val = el.value;
+	      if (self.params.number) {
+	        val = toNumber(val);
+	      }
+	      return val;
+	    };
+
+	    this.listener = function () {
+	      self.set(self.getValue());
+	    };
+	    this.on('change', this.listener);
+
+	    if (el.hasAttribute('checked')) {
+	      this.afterBind = this.listener;
+	    }
+	  },
+
+	  update: function update(value) {
+	    this.el.checked = looseEqual(value, this.getValue());
+	  }
+	};
+
+	var select = {
+
+	  bind: function bind() {
+	    var self = this;
+	    var el = this.el;
+
+	    // method to force update DOM using latest value.
+	    this.forceUpdate = function () {
+	      if (self._watcher) {
+	        self.update(self._watcher.get());
+	      }
+	    };
+
+	    // check if this is a multiple select
+	    var multiple = this.multiple = el.hasAttribute('multiple');
+
+	    // attach listener
+	    this.listener = function () {
+	      var value = getValue(el, multiple);
+	      value = self.params.number ? isArray(value) ? value.map(toNumber) : toNumber(value) : value;
+	      self.set(value);
+	    };
+	    this.on('change', this.listener);
+
+	    // if has initial value, set afterBind
+	    var initValue = getValue(el, multiple, true);
+	    if (multiple && initValue.length || !multiple && initValue !== null) {
+	      this.afterBind = this.listener;
+	    }
+
+	    // All major browsers except Firefox resets
+	    // selectedIndex with value -1 to 0 when the element
+	    // is appended to a new parent, therefore we have to
+	    // force a DOM update whenever that happens...
+	    this.vm.$on('hook:attached', this.forceUpdate);
+	  },
+
+	  update: function update(value) {
+	    var el = this.el;
+	    el.selectedIndex = -1;
+	    var multi = this.multiple && isArray(value);
+	    var options = el.options;
+	    var i = options.length;
+	    var op, val;
+	    while (i--) {
+	      op = options[i];
+	      val = op.hasOwnProperty('_value') ? op._value : op.value;
+	      /* eslint-disable eqeqeq */
+	      op.selected = multi ? indexOf$1(value, val) > -1 : looseEqual(value, val);
+	      /* eslint-enable eqeqeq */
+	    }
+	  },
+
+	  unbind: function unbind() {
+	    /* istanbul ignore next */
+	    this.vm.$off('hook:attached', this.forceUpdate);
+	  }
+	};
+
+	/**
+	 * Get select value
+	 *
+	 * @param {SelectElement} el
+	 * @param {Boolean} multi
+	 * @param {Boolean} init
+	 * @return {Array|*}
+	 */
+
+	function getValue(el, multi, init) {
+	  var res = multi ? [] : null;
+	  var op, val, selected;
+	  for (var i = 0, l = el.options.length; i < l; i++) {
+	    op = el.options[i];
+	    selected = init ? op.hasAttribute('selected') : op.selected;
+	    if (selected) {
+	      val = op.hasOwnProperty('_value') ? op._value : op.value;
+	      if (multi) {
+	        res.push(val);
+	      } else {
+	        return val;
+	      }
+	    }
+	  }
+	  return res;
+	}
+
+	/**
+	 * Native Array.indexOf uses strict equal, but in this
+	 * case we need to match string/numbers with custom equal.
+	 *
+	 * @param {Array} arr
+	 * @param {*} val
+	 */
+
+	function indexOf$1(arr, val) {
+	  var i = arr.length;
+	  while (i--) {
+	    if (looseEqual(arr[i], val)) {
+	      return i;
+	    }
+	  }
+	  return -1;
+	}
+
+	var checkbox = {
+
+	  bind: function bind() {
+	    var self = this;
+	    var el = this.el;
+
+	    this.getValue = function () {
+	      return el.hasOwnProperty('_value') ? el._value : self.params.number ? toNumber(el.value) : el.value;
+	    };
+
+	    function getBooleanValue() {
+	      var val = el.checked;
+	      if (val && el.hasOwnProperty('_trueValue')) {
+	        return el._trueValue;
+	      }
+	      if (!val && el.hasOwnProperty('_falseValue')) {
+	        return el._falseValue;
+	      }
+	      return val;
+	    }
+
+	    this.listener = function () {
+	      var model = self._watcher.value;
+	      if (isArray(model)) {
+	        var val = self.getValue();
+	        if (el.checked) {
+	          if (indexOf(model, val) < 0) {
+	            model.push(val);
+	          }
+	        } else {
+	          model.$remove(val);
+	        }
+	      } else {
+	        self.set(getBooleanValue());
+	      }
+	    };
+
+	    this.on('change', this.listener);
+	    if (el.hasAttribute('checked')) {
+	      this.afterBind = this.listener;
+	    }
+	  },
+
+	  update: function update(value) {
+	    var el = this.el;
+	    if (isArray(value)) {
+	      el.checked = indexOf(value, this.getValue()) > -1;
+	    } else {
+	      if (el.hasOwnProperty('_trueValue')) {
+	        el.checked = looseEqual(value, el._trueValue);
+	      } else {
+	        el.checked = !!value;
+	      }
+	    }
+	  }
+	};
+
+	var handlers = {
+	  text: text$2,
+	  radio: radio,
+	  select: select,
+	  checkbox: checkbox
+	};
+
+	var model = {
+
+	  priority: MODEL,
+	  twoWay: true,
+	  handlers: handlers,
+	  params: ['lazy', 'number', 'debounce'],
+
+	  /**
+	   * Possible elements:
+	   *   <select>
+	   *   <textarea>
+	   *   <input type="*">
+	   *     - text
+	   *     - checkbox
+	   *     - radio
+	   *     - number
+	   */
+
+	  bind: function bind() {
+	    // friendly warning...
+	    this.checkFilters();
+	    if (this.hasRead && !this.hasWrite) {
+	      ("production") !== 'production' && warn('It seems you are using a read-only filter with ' + 'v-model. You might want to use a two-way filter ' + 'to ensure correct behavior.');
+	    }
+	    var el = this.el;
+	    var tag = el.tagName;
+	    var handler;
+	    if (tag === 'INPUT') {
+	      handler = handlers[el.type] || handlers.text;
+	    } else if (tag === 'SELECT') {
+	      handler = handlers.select;
+	    } else if (tag === 'TEXTAREA') {
+	      handler = handlers.text;
+	    } else {
+	      ("production") !== 'production' && warn('v-model does not support element type: ' + tag);
+	      return;
+	    }
+	    el.__v_model = this;
+	    handler.bind.call(this);
+	    this.update = handler.update;
+	    this._unbind = handler.unbind;
+	  },
+
+	  /**
+	   * Check read/write filter stats.
+	   */
+
+	  checkFilters: function checkFilters() {
+	    var filters = this.filters;
+	    if (!filters) return;
+	    var i = filters.length;
+	    while (i--) {
+	      var filter = resolveAsset(this.vm.$options, 'filters', filters[i].name);
+	      if (typeof filter === 'function' || filter.read) {
+	        this.hasRead = true;
+	      }
+	      if (filter.write) {
+	        this.hasWrite = true;
+	      }
+	    }
+	  },
+
+	  unbind: function unbind() {
+	    this.el.__v_model = null;
+	    this._unbind && this._unbind();
+	  }
+	};
+
+	// keyCode aliases
+	var keyCodes = {
+	  esc: 27,
+	  tab: 9,
+	  enter: 13,
+	  space: 32,
+	  'delete': [8, 46],
+	  up: 38,
+	  left: 37,
+	  right: 39,
+	  down: 40
+	};
+
+	function keyFilter(handler, keys) {
+	  var codes = keys.map(function (key) {
+	    var charCode = key.charCodeAt(0);
+	    if (charCode > 47 && charCode < 58) {
+	      return parseInt(key, 10);
+	    }
+	    if (key.length === 1) {
+	      charCode = key.toUpperCase().charCodeAt(0);
+	      if (charCode > 64 && charCode < 91) {
+	        return charCode;
+	      }
+	    }
+	    return keyCodes[key];
+	  });
+	  codes = [].concat.apply([], codes);
+	  return function keyHandler(e) {
+	    if (codes.indexOf(e.keyCode) > -1) {
+	      return handler.call(this, e);
+	    }
+	  };
+	}
+
+	function stopFilter(handler) {
+	  return function stopHandler(e) {
+	    e.stopPropagation();
+	    return handler.call(this, e);
+	  };
+	}
+
+	function preventFilter(handler) {
+	  return function preventHandler(e) {
+	    e.preventDefault();
+	    return handler.call(this, e);
+	  };
+	}
+
+	function selfFilter(handler) {
+	  return function selfHandler(e) {
+	    if (e.target === e.currentTarget) {
+	      return handler.call(this, e);
+	    }
+	  };
+	}
+
+	var on$1 = {
+
+	  priority: ON,
+	  acceptStatement: true,
+	  keyCodes: keyCodes,
+
+	  bind: function bind() {
+	    // deal with iframes
+	    if (this.el.tagName === 'IFRAME' && this.arg !== 'load') {
+	      var self = this;
+	      this.iframeBind = function () {
+	        on(self.el.contentWindow, self.arg, self.handler, self.modifiers.capture);
+	      };
+	      this.on('load', this.iframeBind);
+	    }
+	  },
+
+	  update: function update(handler) {
+	    // stub a noop for v-on with no value,
+	    // e.g. @mousedown.prevent
+	    if (!this.descriptor.raw) {
+	      handler = function () {};
+	    }
+
+	    if (typeof handler !== 'function') {
+	      ("production") !== 'production' && warn('v-on:' + this.arg + '="' + this.expression + '" expects a function value, ' + 'got ' + handler);
+	      return;
+	    }
+
+	    // apply modifiers
+	    if (this.modifiers.stop) {
+	      handler = stopFilter(handler);
+	    }
+	    if (this.modifiers.prevent) {
+	      handler = preventFilter(handler);
+	    }
+	    if (this.modifiers.self) {
+	      handler = selfFilter(handler);
+	    }
+	    // key filter
+	    var keys = Object.keys(this.modifiers).filter(function (key) {
+	      return key !== 'stop' && key !== 'prevent' && key !== 'self';
+	    });
+	    if (keys.length) {
+	      handler = keyFilter(handler, keys);
+	    }
+
+	    this.reset();
+	    this.handler = handler;
+
+	    if (this.iframeBind) {
+	      this.iframeBind();
+	    } else {
+	      on(this.el, this.arg, this.handler, this.modifiers.capture);
+	    }
+	  },
+
+	  reset: function reset() {
+	    var el = this.iframeBind ? this.el.contentWindow : this.el;
+	    if (this.handler) {
+	      off(el, this.arg, this.handler);
+	    }
+	  },
+
+	  unbind: function unbind() {
+	    this.reset();
+	  }
+	};
+
+	var prefixes = ['-webkit-', '-moz-', '-ms-'];
+	var camelPrefixes = ['Webkit', 'Moz', 'ms'];
+	var importantRE = /!important;?$/;
+	var propCache = Object.create(null);
+
+	var testEl = null;
+
+	var style = {
+
+	  deep: true,
+
+	  update: function update(value) {
+	    if (typeof value === 'string') {
+	      this.el.style.cssText = value;
+	    } else if (isArray(value)) {
+	      this.handleObject(value.reduce(extend, {}));
+	    } else {
+	      this.handleObject(value || {});
+	    }
+	  },
+
+	  handleObject: function handleObject(value) {
+	    // cache object styles so that only changed props
+	    // are actually updated.
+	    var cache = this.cache || (this.cache = {});
+	    var name, val;
+	    for (name in cache) {
+	      if (!(name in value)) {
+	        this.handleSingle(name, null);
+	        delete cache[name];
+	      }
+	    }
+	    for (name in value) {
+	      val = value[name];
+	      if (val !== cache[name]) {
+	        cache[name] = val;
+	        this.handleSingle(name, val);
+	      }
+	    }
+	  },
+
+	  handleSingle: function handleSingle(prop, value) {
+	    prop = normalize(prop);
+	    if (!prop) return; // unsupported prop
+	    // cast possible numbers/booleans into strings
+	    if (value != null) value += '';
+	    if (value) {
+	      var isImportant = importantRE.test(value) ? 'important' : '';
+	      if (isImportant) {
+	        value = value.replace(importantRE, '').trim();
+	      }
+	      this.el.style.setProperty(prop, value, isImportant);
+	    } else {
+	      this.el.style.removeProperty(prop);
+	    }
+	  }
+
+	};
+
+	/**
+	 * Normalize a CSS property name.
+	 * - cache result
+	 * - auto prefix
+	 * - camelCase -> dash-case
+	 *
+	 * @param {String} prop
+	 * @return {String}
+	 */
+
+	function normalize(prop) {
+	  if (propCache[prop]) {
+	    return propCache[prop];
+	  }
+	  var res = prefix(prop);
+	  propCache[prop] = propCache[res] = res;
+	  return res;
+	}
+
+	/**
+	 * Auto detect the appropriate prefix for a CSS property.
+	 * https://gist.github.com/paulirish/523692
+	 *
+	 * @param {String} prop
+	 * @return {String}
+	 */
+
+	function prefix(prop) {
+	  prop = hyphenate(prop);
+	  var camel = camelize(prop);
+	  var upper = camel.charAt(0).toUpperCase() + camel.slice(1);
+	  if (!testEl) {
+	    testEl = document.createElement('div');
+	  }
+	  var i = prefixes.length;
+	  var prefixed;
+	  while (i--) {
+	    prefixed = camelPrefixes[i] + upper;
+	    if (prefixed in testEl.style) {
+	      return prefixes[i] + prop;
+	    }
+	  }
+	  if (camel in testEl.style) {
+	    return prop;
+	  }
+	}
+
+	// xlink
+	var xlinkNS = 'http://www.w3.org/1999/xlink';
+	var xlinkRE = /^xlink:/;
+
+	// check for attributes that prohibit interpolations
+	var disallowedInterpAttrRE = /^v-|^:|^@|^(?:is|transition|transition-mode|debounce|track-by|stagger|enter-stagger|leave-stagger)$/;
+	// these attributes should also set their corresponding properties
+	// because they only affect the initial state of the element
+	var attrWithPropsRE = /^(?:value|checked|selected|muted)$/;
+	// these attributes expect enumrated values of "true" or "false"
+	// but are not boolean attributes
+	var enumeratedAttrRE = /^(?:draggable|contenteditable|spellcheck)$/;
+
+	// these attributes should set a hidden property for
+	// binding v-model to object values
+	var modelProps = {
+	  value: '_value',
+	  'true-value': '_trueValue',
+	  'false-value': '_falseValue'
+	};
+
+	var bind$1 = {
+
+	  priority: BIND,
+
+	  bind: function bind() {
+	    var attr = this.arg;
+	    var tag = this.el.tagName;
+	    // should be deep watch on object mode
+	    if (!attr) {
+	      this.deep = true;
+	    }
+	    // handle interpolation bindings
+	    var descriptor = this.descriptor;
+	    var tokens = descriptor.interp;
+	    if (tokens) {
+	      // handle interpolations with one-time tokens
+	      if (descriptor.hasOneTime) {
+	        this.expression = tokensToExp(tokens, this._scope || this.vm);
+	      }
+
+	      // only allow binding on native attributes
+	      if (disallowedInterpAttrRE.test(attr) || attr === 'name' && (tag === 'PARTIAL' || tag === 'SLOT')) {
+	        ("production") !== 'production' && warn(attr + '="' + descriptor.raw + '": ' + 'attribute interpolation is not allowed in Vue.js ' + 'directives and special attributes.');
+	        this.el.removeAttribute(attr);
+	        this.invalid = true;
+	      }
+
+	      /* istanbul ignore if */
+	      if (false) {
+	        var raw = attr + '="' + descriptor.raw + '": ';
+	        // warn src
+	        if (attr === 'src') {
+	          warn(raw + 'interpolation in "src" attribute will cause ' + 'a 404 request. Use v-bind:src instead.');
+	        }
+
+	        // warn style
+	        if (attr === 'style') {
+	          warn(raw + 'interpolation in "style" attribute will cause ' + 'the attribute to be discarded in Internet Explorer. ' + 'Use v-bind:style instead.');
+	        }
+	      }
+	    }
+	  },
+
+	  update: function update(value) {
+	    if (this.invalid) {
+	      return;
+	    }
+	    var attr = this.arg;
+	    if (this.arg) {
+	      this.handleSingle(attr, value);
+	    } else {
+	      this.handleObject(value || {});
+	    }
+	  },
+
+	  // share object handler with v-bind:class
+	  handleObject: style.handleObject,
+
+	  handleSingle: function handleSingle(attr, value) {
+	    var el = this.el;
+	    var interp = this.descriptor.interp;
+	    if (this.modifiers.camel) {
+	      attr = camelize(attr);
+	    }
+	    if (!interp && attrWithPropsRE.test(attr) && attr in el) {
+	      el[attr] = attr === 'value' ? value == null // IE9 will set input.value to "null" for null...
+	      ? '' : value : value;
+	    }
+	    // set model props
+	    var modelProp = modelProps[attr];
+	    if (!interp && modelProp) {
+	      el[modelProp] = value;
+	      // update v-model if present
+	      var model = el.__v_model;
+	      if (model) {
+	        model.listener();
+	      }
+	    }
+	    // do not set value attribute for textarea
+	    if (attr === 'value' && el.tagName === 'TEXTAREA') {
+	      el.removeAttribute(attr);
+	      return;
+	    }
+	    // update attribute
+	    if (enumeratedAttrRE.test(attr)) {
+	      el.setAttribute(attr, value ? 'true' : 'false');
+	    } else if (value != null && value !== false) {
+	      if (attr === 'class') {
+	        // handle edge case #1960:
+	        // class interpolation should not overwrite Vue transition class
+	        if (el.__v_trans) {
+	          value += ' ' + el.__v_trans.id + '-transition';
+	        }
+	        setClass(el, value);
+	      } else if (xlinkRE.test(attr)) {
+	        el.setAttributeNS(xlinkNS, attr, value === true ? '' : value);
+	      } else {
+	        el.setAttribute(attr, value === true ? '' : value);
+	      }
+	    } else {
+	      el.removeAttribute(attr);
+	    }
+	  }
+	};
+
+	var el = {
+
+	  priority: EL,
+
+	  bind: function bind() {
+	    /* istanbul ignore if */
+	    if (!this.arg) {
+	      return;
+	    }
+	    var id = this.id = camelize(this.arg);
+	    var refs = (this._scope || this.vm).$els;
+	    if (hasOwn(refs, id)) {
+	      refs[id] = this.el;
+	    } else {
+	      defineReactive(refs, id, this.el);
+	    }
+	  },
+
+	  unbind: function unbind() {
+	    var refs = (this._scope || this.vm).$els;
+	    if (refs[this.id] === this.el) {
+	      refs[this.id] = null;
+	    }
+	  }
+	};
+
+	var ref = {
+	  bind: function bind() {
+	    ("production") !== 'production' && warn('v-ref:' + this.arg + ' must be used on a child ' + 'component. Found on <' + this.el.tagName.toLowerCase() + '>.');
+	  }
+	};
+
+	var cloak = {
+	  bind: function bind() {
+	    var el = this.el;
+	    this.vm.$once('pre-hook:compiled', function () {
+	      el.removeAttribute('v-cloak');
+	    });
 	  }
 	};
 
 	// must export plain object
-	var publicDirectives = {
-	  text: text,
+	var directives = {
+	  text: text$1,
 	  html: html,
 	  'for': vFor,
 	  'if': vIf,
 	  show: show,
 	  model: model,
-	  on: on,
-	  bind: bind,
+	  on: on$1,
+	  bind: bind$1,
 	  el: el,
 	  ref: ref,
 	  cloak: cloak
+	};
+
+	var vClass = {
+
+	  deep: true,
+
+	  update: function update(value) {
+	    if (value && typeof value === 'string') {
+	      this.handleObject(stringToObject(value));
+	    } else if (isPlainObject(value)) {
+	      this.handleObject(value);
+	    } else if (isArray(value)) {
+	      this.handleArray(value);
+	    } else {
+	      this.cleanup();
+	    }
+	  },
+
+	  handleObject: function handleObject(value) {
+	    this.cleanup(value);
+	    this.prevKeys = Object.keys(value);
+	    setObjectClasses(this.el, value);
+	  },
+
+	  handleArray: function handleArray(value) {
+	    this.cleanup(value);
+	    for (var i = 0, l = value.length; i < l; i++) {
+	      var val = value[i];
+	      if (val && isPlainObject(val)) {
+	        setObjectClasses(this.el, val);
+	      } else if (val && typeof val === 'string') {
+	        addClass(this.el, val);
+	      }
+	    }
+	    this.prevKeys = value.slice();
+	  },
+
+	  cleanup: function cleanup(value) {
+	    if (this.prevKeys) {
+	      var i = this.prevKeys.length;
+	      while (i--) {
+	        var key = this.prevKeys[i];
+	        if (!key) continue;
+	        if (isPlainObject(key)) {
+	          var keys = Object.keys(key);
+	          for (var k = 0; k < keys.length; k++) {
+	            removeClass(this.el, keys[k]);
+	          }
+	        } else {
+	          removeClass(this.el, key);
+	        }
+	      }
+	    }
+	  }
+	};
+
+	function setObjectClasses(el, obj) {
+	  var keys = Object.keys(obj);
+	  for (var i = 0, l = keys.length; i < l; i++) {
+	    var key = keys[i];
+	    if (obj[key]) {
+	      addClass(el, key);
+	    }
+	  }
+	}
+
+	function stringToObject(value) {
+	  var res = {};
+	  var keys = value.trim().split(/\s+/);
+	  var i = keys.length;
+	  while (i--) {
+	    res[keys[i]] = true;
+	  }
+	  return res;
+	}
+
+	var component = {
+
+	  priority: COMPONENT,
+
+	  params: ['keep-alive', 'transition-mode', 'inline-template'],
+
+	  /**
+	   * Setup. Two possible usages:
+	   *
+	   * - static:
+	   *   <comp> or <div v-component="comp">
+	   *
+	   * - dynamic:
+	   *   <component :is="view">
+	   */
+
+	  bind: function bind() {
+	    if (!this.el.__vue__) {
+	      // keep-alive cache
+	      this.keepAlive = this.params.keepAlive;
+	      if (this.keepAlive) {
+	        this.cache = {};
+	      }
+	      // check inline-template
+	      if (this.params.inlineTemplate) {
+	        // extract inline template as a DocumentFragment
+	        this.inlineTemplate = extractContent(this.el, true);
+	      }
+	      // component resolution related state
+	      this.pendingComponentCb = this.Component = null;
+	      // transition related state
+	      this.pendingRemovals = 0;
+	      this.pendingRemovalCb = null;
+	      // create a ref anchor
+	      this.anchor = createAnchor('v-component');
+	      replace(this.el, this.anchor);
+	      // remove is attribute.
+	      // this is removed during compilation, but because compilation is
+	      // cached, when the component is used elsewhere this attribute
+	      // will remain at link time.
+	      this.el.removeAttribute('is');
+	      // remove ref, same as above
+	      if (this.descriptor.ref) {
+	        this.el.removeAttribute('v-ref:' + hyphenate(this.descriptor.ref));
+	      }
+	      // if static, build right now.
+	      if (this.literal) {
+	        this.setComponent(this.expression);
+	      }
+	    } else {
+	      ("production") !== 'production' && warn('cannot mount component "' + this.expression + '" ' + 'on already mounted element: ' + this.el);
+	    }
+	  },
+
+	  /**
+	   * Public update, called by the watcher in the dynamic
+	   * literal scenario, e.g. <component :is="view">
+	   */
+
+	  update: function update(value) {
+	    if (!this.literal) {
+	      this.setComponent(value);
+	    }
+	  },
+
+	  /**
+	   * Switch dynamic components. May resolve the component
+	   * asynchronously, and perform transition based on
+	   * specified transition mode. Accepts a few additional
+	   * arguments specifically for vue-router.
+	   *
+	   * The callback is called when the full transition is
+	   * finished.
+	   *
+	   * @param {String} value
+	   * @param {Function} [cb]
+	   */
+
+	  setComponent: function setComponent(value, cb) {
+	    this.invalidatePending();
+	    if (!value) {
+	      // just remove current
+	      this.unbuild(true);
+	      this.remove(this.childVM, cb);
+	      this.childVM = null;
+	    } else {
+	      var self = this;
+	      this.resolveComponent(value, function () {
+	        self.mountComponent(cb);
+	      });
+	    }
+	  },
+
+	  /**
+	   * Resolve the component constructor to use when creating
+	   * the child vm.
+	   *
+	   * @param {String|Function} value
+	   * @param {Function} cb
+	   */
+
+	  resolveComponent: function resolveComponent(value, cb) {
+	    var self = this;
+	    this.pendingComponentCb = cancellable(function (Component) {
+	      self.ComponentName = Component.options.name || (typeof value === 'string' ? value : null);
+	      self.Component = Component;
+	      cb();
+	    });
+	    this.vm._resolveComponent(value, this.pendingComponentCb);
+	  },
+
+	  /**
+	   * Create a new instance using the current constructor and
+	   * replace the existing instance. This method doesn't care
+	   * whether the new component and the old one are actually
+	   * the same.
+	   *
+	   * @param {Function} [cb]
+	   */
+
+	  mountComponent: function mountComponent(cb) {
+	    // actual mount
+	    this.unbuild(true);
+	    var self = this;
+	    var activateHooks = this.Component.options.activate;
+	    var cached = this.getCached();
+	    var newComponent = this.build();
+	    if (activateHooks && !cached) {
+	      this.waitingFor = newComponent;
+	      callActivateHooks(activateHooks, newComponent, function () {
+	        if (self.waitingFor !== newComponent) {
+	          return;
+	        }
+	        self.waitingFor = null;
+	        self.transition(newComponent, cb);
+	      });
+	    } else {
+	      // update ref for kept-alive component
+	      if (cached) {
+	        newComponent._updateRef();
+	      }
+	      this.transition(newComponent, cb);
+	    }
+	  },
+
+	  /**
+	   * When the component changes or unbinds before an async
+	   * constructor is resolved, we need to invalidate its
+	   * pending callback.
+	   */
+
+	  invalidatePending: function invalidatePending() {
+	    if (this.pendingComponentCb) {
+	      this.pendingComponentCb.cancel();
+	      this.pendingComponentCb = null;
+	    }
+	  },
+
+	  /**
+	   * Instantiate/insert a new child vm.
+	   * If keep alive and has cached instance, insert that
+	   * instance; otherwise build a new one and cache it.
+	   *
+	   * @param {Object} [extraOptions]
+	   * @return {Vue} - the created instance
+	   */
+
+	  build: function build(extraOptions) {
+	    var cached = this.getCached();
+	    if (cached) {
+	      return cached;
+	    }
+	    if (this.Component) {
+	      // default options
+	      var options = {
+	        name: this.ComponentName,
+	        el: cloneNode(this.el),
+	        template: this.inlineTemplate,
+	        // make sure to add the child with correct parent
+	        // if this is a transcluded component, its parent
+	        // should be the transclusion host.
+	        parent: this._host || this.vm,
+	        // if no inline-template, then the compiled
+	        // linker can be cached for better performance.
+	        _linkerCachable: !this.inlineTemplate,
+	        _ref: this.descriptor.ref,
+	        _asComponent: true,
+	        _isRouterView: this._isRouterView,
+	        // if this is a transcluded component, context
+	        // will be the common parent vm of this instance
+	        // and its host.
+	        _context: this.vm,
+	        // if this is inside an inline v-for, the scope
+	        // will be the intermediate scope created for this
+	        // repeat fragment. this is used for linking props
+	        // and container directives.
+	        _scope: this._scope,
+	        // pass in the owner fragment of this component.
+	        // this is necessary so that the fragment can keep
+	        // track of its contained components in order to
+	        // call attach/detach hooks for them.
+	        _frag: this._frag
+	      };
+	      // extra options
+	      // in 1.0.0 this is used by vue-router only
+	      /* istanbul ignore if */
+	      if (extraOptions) {
+	        extend(options, extraOptions);
+	      }
+	      var child = new this.Component(options);
+	      if (this.keepAlive) {
+	        this.cache[this.Component.cid] = child;
+	      }
+	      /* istanbul ignore if */
+	      if (false) {
+	        warn('Transitions will not work on a fragment instance. ' + 'Template: ' + child.$options.template);
+	      }
+	      return child;
+	    }
+	  },
+
+	  /**
+	   * Try to get a cached instance of the current component.
+	   *
+	   * @return {Vue|undefined}
+	   */
+
+	  getCached: function getCached() {
+	    return this.keepAlive && this.cache[this.Component.cid];
+	  },
+
+	  /**
+	   * Teardown the current child, but defers cleanup so
+	   * that we can separate the destroy and removal steps.
+	   *
+	   * @param {Boolean} defer
+	   */
+
+	  unbuild: function unbuild(defer) {
+	    if (this.waitingFor) {
+	      if (!this.keepAlive) {
+	        this.waitingFor.$destroy();
+	      }
+	      this.waitingFor = null;
+	    }
+	    var child = this.childVM;
+	    if (!child || this.keepAlive) {
+	      if (child) {
+	        // remove ref
+	        child._inactive = true;
+	        child._updateRef(true);
+	      }
+	      return;
+	    }
+	    // the sole purpose of `deferCleanup` is so that we can
+	    // "deactivate" the vm right now and perform DOM removal
+	    // later.
+	    child.$destroy(false, defer);
+	  },
+
+	  /**
+	   * Remove current destroyed child and manually do
+	   * the cleanup after removal.
+	   *
+	   * @param {Function} cb
+	   */
+
+	  remove: function remove(child, cb) {
+	    var keepAlive = this.keepAlive;
+	    if (child) {
+	      // we may have a component switch when a previous
+	      // component is still being transitioned out.
+	      // we want to trigger only one lastest insertion cb
+	      // when the existing transition finishes. (#1119)
+	      this.pendingRemovals++;
+	      this.pendingRemovalCb = cb;
+	      var self = this;
+	      child.$remove(function () {
+	        self.pendingRemovals--;
+	        if (!keepAlive) child._cleanup();
+	        if (!self.pendingRemovals && self.pendingRemovalCb) {
+	          self.pendingRemovalCb();
+	          self.pendingRemovalCb = null;
+	        }
+	      });
+	    } else if (cb) {
+	      cb();
+	    }
+	  },
+
+	  /**
+	   * Actually swap the components, depending on the
+	   * transition mode. Defaults to simultaneous.
+	   *
+	   * @param {Vue} target
+	   * @param {Function} [cb]
+	   */
+
+	  transition: function transition(target, cb) {
+	    var self = this;
+	    var current = this.childVM;
+	    // for devtool inspection
+	    if (current) current._inactive = true;
+	    target._inactive = false;
+	    this.childVM = target;
+	    switch (self.params.transitionMode) {
+	      case 'in-out':
+	        target.$before(self.anchor, function () {
+	          self.remove(current, cb);
+	        });
+	        break;
+	      case 'out-in':
+	        self.remove(current, function () {
+	          target.$before(self.anchor, cb);
+	        });
+	        break;
+	      default:
+	        self.remove(current);
+	        target.$before(self.anchor, cb);
+	    }
+	  },
+
+	  /**
+	   * Unbind.
+	   */
+
+	  unbind: function unbind() {
+	    this.invalidatePending();
+	    // Do not defer cleanup when unbinding
+	    this.unbuild();
+	    // destroy all keep-alive cached instances
+	    if (this.cache) {
+	      for (var key in this.cache) {
+	        this.cache[key].$destroy();
+	      }
+	      this.cache = null;
+	    }
+	  }
+	};
+
+	/**
+	 * Call activate hooks in order (asynchronous)
+	 *
+	 * @param {Array} hooks
+	 * @param {Vue} vm
+	 * @param {Function} cb
+	 */
+
+	function callActivateHooks(hooks, vm, cb) {
+	  var total = hooks.length;
+	  var called = 0;
+	  hooks[0].call(vm, next);
+	  function next() {
+	    if (++called >= total) {
+	      cb();
+	    } else {
+	      hooks[called].call(vm, next);
+	    }
+	  }
+	}
+
+	var propBindingModes = config._propBindingModes;
+	var empty = {};
+
+	// regexes
+	var identRE$1 = /^[$_a-zA-Z]+[\w$]*$/;
+	var settablePathRE = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*|\[[^\[\]]+\])*$/;
+
+	/**
+	 * Compile props on a root element and return
+	 * a props link function.
+	 *
+	 * @param {Element|DocumentFragment} el
+	 * @param {Array} propOptions
+	 * @return {Function} propsLinkFn
+	 */
+
+	function compileProps(el, propOptions) {
+	  var props = [];
+	  var names = Object.keys(propOptions);
+	  var i = names.length;
+	  var options, name, attr, value, path, parsed, prop;
+	  while (i--) {
+	    name = names[i];
+	    options = propOptions[name] || empty;
+
+	    if (false) {
+	      warn('Do not use $data as prop.');
+	      continue;
+	    }
+
+	    // props could contain dashes, which will be
+	    // interpreted as minus calculations by the parser
+	    // so we need to camelize the path here
+	    path = camelize(name);
+	    if (!identRE$1.test(path)) {
+	      ("production") !== 'production' && warn('Invalid prop key: "' + name + '". Prop keys ' + 'must be valid identifiers.');
+	      continue;
+	    }
+
+	    prop = {
+	      name: name,
+	      path: path,
+	      options: options,
+	      mode: propBindingModes.ONE_WAY,
+	      raw: null
+	    };
+
+	    attr = hyphenate(name);
+	    // first check dynamic version
+	    if ((value = getBindAttr(el, attr)) === null) {
+	      if ((value = getBindAttr(el, attr + '.sync')) !== null) {
+	        prop.mode = propBindingModes.TWO_WAY;
+	      } else if ((value = getBindAttr(el, attr + '.once')) !== null) {
+	        prop.mode = propBindingModes.ONE_TIME;
+	      }
+	    }
+	    if (value !== null) {
+	      // has dynamic binding!
+	      prop.raw = value;
+	      parsed = parseDirective(value);
+	      value = parsed.expression;
+	      prop.filters = parsed.filters;
+	      // check binding type
+	      if (isLiteral(value) && !parsed.filters) {
+	        // for expressions containing literal numbers and
+	        // booleans, there's no need to setup a prop binding,
+	        // so we can optimize them as a one-time set.
+	        prop.optimizedLiteral = true;
+	      } else {
+	        prop.dynamic = true;
+	        // check non-settable path for two-way bindings
+	        if (false) {
+	          prop.mode = propBindingModes.ONE_WAY;
+	          warn('Cannot bind two-way prop with non-settable ' + 'parent path: ' + value);
+	        }
+	      }
+	      prop.parentPath = value;
+
+	      // warn required two-way
+	      if (false) {
+	        warn('Prop "' + name + '" expects a two-way binding type.');
+	      }
+	    } else if ((value = getAttr(el, attr)) !== null) {
+	      // has literal binding!
+	      prop.raw = value;
+	    } else if (false) {
+	      // check possible camelCase prop usage
+	      var lowerCaseName = path.toLowerCase();
+	      value = /[A-Z\-]/.test(name) && (el.getAttribute(lowerCaseName) || el.getAttribute(':' + lowerCaseName) || el.getAttribute('v-bind:' + lowerCaseName) || el.getAttribute(':' + lowerCaseName + '.once') || el.getAttribute('v-bind:' + lowerCaseName + '.once') || el.getAttribute(':' + lowerCaseName + '.sync') || el.getAttribute('v-bind:' + lowerCaseName + '.sync'));
+	      if (value) {
+	        warn('Possible usage error for prop `' + lowerCaseName + '` - ' + 'did you mean `' + attr + '`? HTML is case-insensitive, remember to use ' + 'kebab-case for props in templates.');
+	      } else if (options.required) {
+	        // warn missing required
+	        warn('Missing required prop: ' + name);
+	      }
+	    }
+	    // push prop
+	    props.push(prop);
+	  }
+	  return makePropsLinkFn(props);
+	}
+
+	/**
+	 * Build a function that applies props to a vm.
+	 *
+	 * @param {Array} props
+	 * @return {Function} propsLinkFn
+	 */
+
+	function makePropsLinkFn(props) {
+	  return function propsLinkFn(vm, scope) {
+	    // store resolved props info
+	    vm._props = {};
+	    var i = props.length;
+	    var prop, path, options, value, raw;
+	    while (i--) {
+	      prop = props[i];
+	      raw = prop.raw;
+	      path = prop.path;
+	      options = prop.options;
+	      vm._props[path] = prop;
+	      if (raw === null) {
+	        // initialize absent prop
+	        initProp(vm, prop, undefined);
+	      } else if (prop.dynamic) {
+	        // dynamic prop
+	        if (prop.mode === propBindingModes.ONE_TIME) {
+	          // one time binding
+	          value = (scope || vm._context || vm).$get(prop.parentPath);
+	          initProp(vm, prop, value);
+	        } else {
+	          if (vm._context) {
+	            // dynamic binding
+	            vm._bindDir({
+	              name: 'prop',
+	              def: propDef,
+	              prop: prop
+	            }, null, null, scope); // el, host, scope
+	          } else {
+	              // root instance
+	              initProp(vm, prop, vm.$get(prop.parentPath));
+	            }
+	        }
+	      } else if (prop.optimizedLiteral) {
+	        // optimized literal, cast it and just set once
+	        var stripped = stripQuotes(raw);
+	        value = stripped === raw ? toBoolean(toNumber(raw)) : stripped;
+	        initProp(vm, prop, value);
+	      } else {
+	        // string literal, but we need to cater for
+	        // Boolean props with no value, or with same
+	        // literal value (e.g. disabled="disabled")
+	        // see https://github.com/vuejs/vue-loader/issues/182
+	        value = options.type === Boolean && (raw === '' || raw === hyphenate(prop.name)) ? true : raw;
+	        initProp(vm, prop, value);
+	      }
+	    }
+	  };
+	}
+
+	/**
+	 * Set a prop's initial value on a vm and its data object.
+	 *
+	 * @param {Vue} vm
+	 * @param {Object} prop
+	 * @param {*} value
+	 */
+
+	function initProp(vm, prop, value) {
+	  var key = prop.path;
+	  value = coerceProp(prop, value);
+	  if (value === undefined) {
+	    value = getPropDefaultValue(vm, prop.options);
+	  }
+	  if (assertProp(prop, value)) {
+	    defineReactive(vm, key, value);
+	  }
+	}
+
+	/**
+	 * Get the default value of a prop.
+	 *
+	 * @param {Vue} vm
+	 * @param {Object} options
+	 * @return {*}
+	 */
+
+	function getPropDefaultValue(vm, options) {
+	  // no default, return undefined
+	  if (!hasOwn(options, 'default')) {
+	    // absent boolean value defaults to false
+	    return options.type === Boolean ? false : undefined;
+	  }
+	  var def = options['default'];
+	  // warn against non-factory defaults for Object & Array
+	  if (isObject(def)) {
+	    ("production") !== 'production' && warn('Object/Array as default prop values will be shared ' + 'across multiple instances. Use a factory function ' + 'to return the default value instead.');
+	  }
+	  // call factory function for non-Function types
+	  return typeof def === 'function' && options.type !== Function ? def.call(vm) : def;
+	}
+
+	/**
+	 * Assert whether a prop is valid.
+	 *
+	 * @param {Object} prop
+	 * @param {*} value
+	 */
+
+	function assertProp(prop, value) {
+	  if (!prop.options.required && ( // non-required
+	  prop.raw === null || // abscent
+	  value == null) // null or undefined
+	  ) {
+	      return true;
+	    }
+	  var options = prop.options;
+	  var type = options.type;
+	  var valid = true;
+	  var expectedType;
+	  if (type) {
+	    if (type === String) {
+	      expectedType = 'string';
+	      valid = typeof value === expectedType;
+	    } else if (type === Number) {
+	      expectedType = 'number';
+	      valid = typeof value === 'number';
+	    } else if (type === Boolean) {
+	      expectedType = 'boolean';
+	      valid = typeof value === 'boolean';
+	    } else if (type === Function) {
+	      expectedType = 'function';
+	      valid = typeof value === 'function';
+	    } else if (type === Object) {
+	      expectedType = 'object';
+	      valid = isPlainObject(value);
+	    } else if (type === Array) {
+	      expectedType = 'array';
+	      valid = isArray(value);
+	    } else {
+	      valid = value instanceof type;
+	    }
+	  }
+	  if (!valid) {
+	    ("production") !== 'production' && warn('Invalid prop: type check failed for ' + prop.path + '="' + prop.raw + '".' + ' Expected ' + formatType(expectedType) + ', got ' + formatValue(value) + '.');
+	    return false;
+	  }
+	  var validator = options.validator;
+	  if (validator) {
+	    if (!validator(value)) {
+	      ("production") !== 'production' && warn('Invalid prop: custom validator check failed for ' + prop.path + '="' + prop.raw + '"');
+	      return false;
+	    }
+	  }
+	  return true;
+	}
+
+	/**
+	 * Force parsing value with coerce option.
+	 *
+	 * @param {*} value
+	 * @param {Object} options
+	 * @return {*}
+	 */
+
+	function coerceProp(prop, value) {
+	  var coerce = prop.options.coerce;
+	  if (!coerce) {
+	    return value;
+	  }
+	  // coerce is a function
+	  return coerce(value);
+	}
+
+	function formatType(val) {
+	  return val ? val.charAt(0).toUpperCase() + val.slice(1) : 'custom type';
+	}
+
+	function formatValue(val) {
+	  return Object.prototype.toString.call(val).slice(8, -1);
+	}
+
+	var bindingModes = config._propBindingModes;
+
+	var propDef = {
+
+	  bind: function bind() {
+	    var child = this.vm;
+	    var parent = child._context;
+	    // passed in from compiler directly
+	    var prop = this.descriptor.prop;
+	    var childKey = prop.path;
+	    var parentKey = prop.parentPath;
+	    var twoWay = prop.mode === bindingModes.TWO_WAY;
+	    var isSimple = isSimplePath(parentKey);
+
+	    var parentWatcher = this.parentWatcher = new Watcher(parent, parentKey, function (val) {
+	      val = coerceProp(prop, val);
+	      if (assertProp(prop, val)) {
+	        if (isSimple) {
+	          withoutConversion(function () {
+	            child[childKey] = val;
+	          });
+	        } else {
+	          child[childKey] = val;
+	        }
+	      }
+	    }, {
+	      twoWay: twoWay,
+	      filters: prop.filters,
+	      // important: props need to be observed on the
+	      // v-for scope if present
+	      scope: this._scope
+	    });
+
+	    // set the child initial value.
+	    var value = parentWatcher.value;
+	    if (isSimple && value !== undefined) {
+	      withoutConversion(function () {
+	        initProp(child, prop, value);
+	      });
+	    } else {
+	      initProp(child, prop, value);
+	    }
+
+	    // setup two-way binding
+	    if (twoWay) {
+	      // important: defer the child watcher creation until
+	      // the created hook (after data observation)
+	      var self = this;
+	      child.$once('pre-hook:created', function () {
+	        self.childWatcher = new Watcher(child, childKey, function (val) {
+	          parentWatcher.set(val);
+	        }, {
+	          // ensure sync upward before parent sync down.
+	          // this is necessary in cases e.g. the child
+	          // mutates a prop array, then replaces it. (#1683)
+	          sync: true
+	        });
+	      });
+	    }
+	  },
+
+	  unbind: function unbind() {
+	    this.parentWatcher.teardown();
+	    if (this.childWatcher) {
+	      this.childWatcher.teardown();
+	    }
+	  }
 	};
 
 	var queue$1 = [];
@@ -5305,10 +6299,36 @@
 	  return f;
 	}
 
-	var TYPE_TRANSITION = 1;
-	var TYPE_ANIMATION = 2;
+	var TYPE_TRANSITION = 'transition';
+	var TYPE_ANIMATION = 'animation';
 	var transDurationProp = transitionProp + 'Duration';
 	var animDurationProp = animationProp + 'Duration';
+
+	/**
+	 * If a just-entered element is applied the
+	 * leave class while its enter transition hasn't started yet,
+	 * and the transitioned property has the same value for both
+	 * enter/leave, then the leave transition will be skipped and
+	 * the transitionend event never fires. This function ensures
+	 * its callback to be called after a transition has started
+	 * by waiting for double raf.
+	 *
+	 * It falls back to setTimeout on devices that support CSS
+	 * transitions but not raf (e.g. Android 4.2 browser) - since
+	 * these environments are usually slow, we are giving it a
+	 * relatively large timeout.
+	 */
+
+	var raf = inBrowser && window.requestAnimationFrame;
+	var waitForTransitionStart = raf
+	/* istanbul ignore next */
+	? function (fn) {
+	  raf(function () {
+	    raf(fn);
+	  });
+	} : function (fn) {
+	  setTimeout(fn, 50);
+	};
 
 	/**
 	 * A Transition object that encapsulates the state and logic
@@ -5322,8 +6342,8 @@
 	function Transition(el, id, hooks, vm) {
 	  this.id = id;
 	  this.el = el;
-	  this.enterClass = id + '-enter';
-	  this.leaveClass = id + '-leave';
+	  this.enterClass = hooks && hooks.enterClass || id + '-enter';
+	  this.leaveClass = hooks && hooks.leaveClass || id + '-leave';
 	  this.hooks = hooks;
 	  this.vm = vm;
 	  // async state
@@ -5331,9 +6351,17 @@
 	  this.justEntered = false;
 	  this.entered = this.left = false;
 	  this.typeCache = {};
+	  // check css transition type
+	  this.type = hooks && hooks.type;
+	  /* istanbul ignore if */
+	  if (false) {
+	    if (this.type && this.type !== TYPE_TRANSITION && this.type !== TYPE_ANIMATION) {
+	      warn('invalid CSS transition type for transition="' + this.id + '": ' + this.type);
+	    }
+	  }
 	  // bind
 	  var self = this;['enterNextTick', 'enterDone', 'leaveNextTick', 'leaveDone'].forEach(function (m) {
-	    self[m] = bind$1(self[m], self);
+	    self[m] = bind(self[m], self);
 	  });
 	}
 
@@ -5386,20 +6414,13 @@
 	 */
 
 	p$1.enterNextTick = function () {
+	  var _this = this;
 
-	  // Important hack:
-	  // in Chrome, if a just-entered element is applied the
-	  // leave class while its interpolated property still has
-	  // a very small value (within one frame), Chrome will
-	  // skip the leave transition entirely and not firing the
-	  // transtionend event. Therefore we need to protected
-	  // against such cases using a one-frame timeout.
+	  // prevent transition skipping
 	  this.justEntered = true;
-	  var self = this;
-	  setTimeout(function () {
-	    self.justEntered = false;
-	  }, 17);
-
+	  waitForTransitionStart(function () {
+	    _this.justEntered = false;
+	  });
 	  var enterDone = this.enterDone;
 	  var type = this.getCssTransitionType(this.enterClass);
 	  if (!this.pendingJsCb) {
@@ -5590,7 +6611,7 @@
 	  isHidden(this.el)) {
 	    return;
 	  }
-	  var type = this.typeCache[className];
+	  var type = this.type || this.typeCache[className];
 	  if (type) return type;
 	  var inlineStyles = this.el.style;
 	  var computedStyles = window.getComputedStyle(this.el);
@@ -5629,7 +6650,7 @@
 	      }
 	    }
 	  };
-	  on$1(el, event, onEnd);
+	  on(el, event, onEnd);
 	};
 
 	/**
@@ -5641,20 +6662,26 @@
 	 */
 
 	function isHidden(el) {
-	  return !(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+	  if (/svg$/.test(el.namespaceURI)) {
+	    // SVG elements do not have offset(Width|Height)
+	    // so we need to check the client rect
+	    var rect = el.getBoundingClientRect();
+	    return !(rect.width || rect.height);
+	  } else {
+	    return !(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+	  }
 	}
 
-	var transition = {
+	var transition$1 = {
 
-	  priority: 1100,
+	  priority: TRANSITION,
 
 	  update: function update(id, oldId) {
 	    var el = this.el;
 	    // resolve on owner vm
 	    var hooks = resolveAsset(this.vm.$options, 'transitions', id);
 	    id = id || 'v';
-	    // apply on closest vm
-	    el.__v_trans = new Transition(el, id, hooks, this.el.__vue__ || this.vm);
+	    el.__v_trans = new Transition(el, id, hooks, this.vm);
 	    if (oldId) {
 	      removeClass(el, oldId + '-transition');
 	    }
@@ -5662,653 +6689,24 @@
 	  }
 	};
 
-	var bindingModes = config._propBindingModes;
-
-	var propDef = {
-
-	  bind: function bind() {
-
-	    var child = this.vm;
-	    var parent = child._context;
-	    // passed in from compiler directly
-	    var prop = this.descriptor.prop;
-	    var childKey = prop.path;
-	    var parentKey = prop.parentPath;
-	    var twoWay = prop.mode === bindingModes.TWO_WAY;
-
-	    var parentWatcher = this.parentWatcher = new Watcher(parent, parentKey, function (val) {
-	      if (assertProp(prop, val)) {
-	        child[childKey] = val;
-	      }
-	    }, {
-	      twoWay: twoWay,
-	      filters: prop.filters,
-	      // important: props need to be observed on the
-	      // v-for scope if present
-	      scope: this._scope
-	    });
-
-	    // set the child initial value.
-	    initProp(child, prop, parentWatcher.value);
-
-	    // setup two-way binding
-	    if (twoWay) {
-	      // important: defer the child watcher creation until
-	      // the created hook (after data observation)
-	      var self = this;
-	      child.$once('hook:created', function () {
-	        self.childWatcher = new Watcher(child, childKey, function (val) {
-	          parentWatcher.set(val);
-	        }, {
-	          // ensure sync upward before parent sync down.
-	          // this is necessary in cases e.g. the child
-	          // mutates a prop array, then replaces it. (#1683)
-	          sync: true
-	        });
-	      });
-	    }
-	  },
-
-	  unbind: function unbind() {
-	    this.parentWatcher.teardown();
-	    if (this.childWatcher) {
-	      this.childWatcher.teardown();
-	    }
-	  }
-	};
-
-	var component = {
-
-	  priority: 1500,
-
-	  params: ['keep-alive', 'transition-mode', 'inline-template'],
-
-	  /**
-	   * Setup. Two possible usages:
-	   *
-	   * - static:
-	   *   <comp> or <div v-component="comp">
-	   *
-	   * - dynamic:
-	   *   <component :is="view">
-	   */
-
-	  bind: function bind() {
-	    if (!this.el.__vue__) {
-	      // keep-alive cache
-	      this.keepAlive = this.params.keepAlive;
-	      if (this.keepAlive) {
-	        this.cache = {};
-	      }
-	      // check inline-template
-	      if (this.params.inlineTemplate) {
-	        // extract inline template as a DocumentFragment
-	        this.inlineTemplate = extractContent(this.el, true);
-	      }
-	      // component resolution related state
-	      this.pendingComponentCb = this.Component = null;
-	      // transition related state
-	      this.pendingRemovals = 0;
-	      this.pendingRemovalCb = null;
-	      // create a ref anchor
-	      this.anchor = createAnchor('v-component');
-	      replace(this.el, this.anchor);
-	      // remove is attribute.
-	      // this is removed during compilation, but because compilation is
-	      // cached, when the component is used elsewhere this attribute
-	      // will remain at link time.
-	      this.el.removeAttribute('is');
-	      // remove ref, same as above
-	      if (this.descriptor.ref) {
-	        this.el.removeAttribute('v-ref:' + hyphenate(this.descriptor.ref));
-	      }
-	      // if static, build right now.
-	      if (this.literal) {
-	        this.setComponent(this.expression);
-	      }
-	    } else {
-	      ("production") !== 'production' && warn('cannot mount component "' + this.expression + '" ' + 'on already mounted element: ' + this.el);
-	    }
-	  },
-
-	  /**
-	   * Public update, called by the watcher in the dynamic
-	   * literal scenario, e.g. <component :is="view">
-	   */
-
-	  update: function update(value) {
-	    if (!this.literal) {
-	      this.setComponent(value);
-	    }
-	  },
-
-	  /**
-	   * Switch dynamic components. May resolve the component
-	   * asynchronously, and perform transition based on
-	   * specified transition mode. Accepts a few additional
-	   * arguments specifically for vue-router.
-	   *
-	   * The callback is called when the full transition is
-	   * finished.
-	   *
-	   * @param {String} value
-	   * @param {Function} [cb]
-	   */
-
-	  setComponent: function setComponent(value, cb) {
-	    this.invalidatePending();
-	    if (!value) {
-	      // just remove current
-	      this.unbuild(true);
-	      this.remove(this.childVM, cb);
-	      this.childVM = null;
-	    } else {
-	      var self = this;
-	      this.resolveComponent(value, function () {
-	        self.mountComponent(cb);
-	      });
-	    }
-	  },
-
-	  /**
-	   * Resolve the component constructor to use when creating
-	   * the child vm.
-	   */
-
-	  resolveComponent: function resolveComponent(id, cb) {
-	    var self = this;
-	    this.pendingComponentCb = cancellable(function (Component) {
-	      self.ComponentName = Component.options.name || id;
-	      self.Component = Component;
-	      cb();
-	    });
-	    this.vm._resolveComponent(id, this.pendingComponentCb);
-	  },
-
-	  /**
-	   * Create a new instance using the current constructor and
-	   * replace the existing instance. This method doesn't care
-	   * whether the new component and the old one are actually
-	   * the same.
-	   *
-	   * @param {Function} [cb]
-	   */
-
-	  mountComponent: function mountComponent(cb) {
-	    // actual mount
-	    this.unbuild(true);
-	    var self = this;
-	    var activateHook = this.Component.options.activate;
-	    var cached = this.getCached();
-	    var newComponent = this.build();
-	    if (activateHook && !cached) {
-	      this.waitingFor = newComponent;
-	      activateHook.call(newComponent, function () {
-	        self.waitingFor = null;
-	        self.transition(newComponent, cb);
-	      });
-	    } else {
-	      // update ref for kept-alive component
-	      if (cached) {
-	        newComponent._updateRef();
-	      }
-	      this.transition(newComponent, cb);
-	    }
-	  },
-
-	  /**
-	   * When the component changes or unbinds before an async
-	   * constructor is resolved, we need to invalidate its
-	   * pending callback.
-	   */
-
-	  invalidatePending: function invalidatePending() {
-	    if (this.pendingComponentCb) {
-	      this.pendingComponentCb.cancel();
-	      this.pendingComponentCb = null;
-	    }
-	  },
-
-	  /**
-	   * Instantiate/insert a new child vm.
-	   * If keep alive and has cached instance, insert that
-	   * instance; otherwise build a new one and cache it.
-	   *
-	   * @param {Object} [extraOptions]
-	   * @return {Vue} - the created instance
-	   */
-
-	  build: function build(extraOptions) {
-	    var cached = this.getCached();
-	    if (cached) {
-	      return cached;
-	    }
-	    if (this.Component) {
-	      // default options
-	      var options = {
-	        name: this.ComponentName,
-	        el: cloneNode(this.el),
-	        template: this.inlineTemplate,
-	        // make sure to add the child with correct parent
-	        // if this is a transcluded component, its parent
-	        // should be the transclusion host.
-	        parent: this._host || this.vm,
-	        // if no inline-template, then the compiled
-	        // linker can be cached for better performance.
-	        _linkerCachable: !this.inlineTemplate,
-	        _ref: this.descriptor.ref,
-	        _asComponent: true,
-	        _isRouterView: this._isRouterView,
-	        // if this is a transcluded component, context
-	        // will be the common parent vm of this instance
-	        // and its host.
-	        _context: this.vm,
-	        // if this is inside an inline v-for, the scope
-	        // will be the intermediate scope created for this
-	        // repeat fragment. this is used for linking props
-	        // and container directives.
-	        _scope: this._scope,
-	        // pass in the owner fragment of this component.
-	        // this is necessary so that the fragment can keep
-	        // track of its contained components in order to
-	        // call attach/detach hooks for them.
-	        _frag: this._frag
-	      };
-	      // extra options
-	      // in 1.0.0 this is used by vue-router only
-	      /* istanbul ignore if */
-	      if (extraOptions) {
-	        extend(options, extraOptions);
-	      }
-	      var child = new this.Component(options);
-	      if (this.keepAlive) {
-	        this.cache[this.Component.cid] = child;
-	      }
-	      /* istanbul ignore if */
-	      if (false) {
-	        warn('Transitions will not work on a fragment instance. ' + 'Template: ' + child.$options.template);
-	      }
-	      return child;
-	    }
-	  },
-
-	  /**
-	   * Try to get a cached instance of the current component.
-	   *
-	   * @return {Vue|undefined}
-	   */
-
-	  getCached: function getCached() {
-	    return this.keepAlive && this.cache[this.Component.cid];
-	  },
-
-	  /**
-	   * Teardown the current child, but defers cleanup so
-	   * that we can separate the destroy and removal steps.
-	   *
-	   * @param {Boolean} defer
-	   */
-
-	  unbuild: function unbuild(defer) {
-	    if (this.waitingFor) {
-	      this.waitingFor.$destroy();
-	      this.waitingFor = null;
-	    }
-	    var child = this.childVM;
-	    if (!child || this.keepAlive) {
-	      if (child) {
-	        // remove ref
-	        child._updateRef(true);
-	      }
-	      return;
-	    }
-	    // the sole purpose of `deferCleanup` is so that we can
-	    // "deactivate" the vm right now and perform DOM removal
-	    // later.
-	    child.$destroy(false, defer);
-	  },
-
-	  /**
-	   * Remove current destroyed child and manually do
-	   * the cleanup after removal.
-	   *
-	   * @param {Function} cb
-	   */
-
-	  remove: function remove(child, cb) {
-	    var keepAlive = this.keepAlive;
-	    if (child) {
-	      // we may have a component switch when a previous
-	      // component is still being transitioned out.
-	      // we want to trigger only one lastest insertion cb
-	      // when the existing transition finishes. (#1119)
-	      this.pendingRemovals++;
-	      this.pendingRemovalCb = cb;
-	      var self = this;
-	      child.$remove(function () {
-	        self.pendingRemovals--;
-	        if (!keepAlive) child._cleanup();
-	        if (!self.pendingRemovals && self.pendingRemovalCb) {
-	          self.pendingRemovalCb();
-	          self.pendingRemovalCb = null;
-	        }
-	      });
-	    } else if (cb) {
-	      cb();
-	    }
-	  },
-
-	  /**
-	   * Actually swap the components, depending on the
-	   * transition mode. Defaults to simultaneous.
-	   *
-	   * @param {Vue} target
-	   * @param {Function} [cb]
-	   */
-
-	  transition: function transition(target, cb) {
-	    var self = this;
-	    var current = this.childVM;
-	    // for devtool inspection
-	    if (false) {
-	      if (current) current._inactive = true;
-	      target._inactive = false;
-	    }
-	    this.childVM = target;
-	    switch (self.params.transitionMode) {
-	      case 'in-out':
-	        target.$before(self.anchor, function () {
-	          self.remove(current, cb);
-	        });
-	        break;
-	      case 'out-in':
-	        self.remove(current, function () {
-	          target.$before(self.anchor, cb);
-	        });
-	        break;
-	      default:
-	        self.remove(current);
-	        target.$before(self.anchor, cb);
-	    }
-	  },
-
-	  /**
-	   * Unbind.
-	   */
-
-	  unbind: function unbind() {
-	    this.invalidatePending();
-	    // Do not defer cleanup when unbinding
-	    this.unbuild();
-	    // destroy all keep-alive cached instances
-	    if (this.cache) {
-	      for (var key in this.cache) {
-	        this.cache[key].$destroy();
-	      }
-	      this.cache = null;
-	    }
-	  }
-	};
-
-	var vClass = {
-
-	  deep: true,
-
-	  update: function update(value) {
-	    if (value && typeof value === 'string') {
-	      this.handleObject(stringToObject(value));
-	    } else if (isPlainObject(value)) {
-	      this.handleObject(value);
-	    } else if (isArray(value)) {
-	      this.handleArray(value);
-	    } else {
-	      this.cleanup();
-	    }
-	  },
-
-	  handleObject: function handleObject(value) {
-	    this.cleanup(value);
-	    var keys = this.prevKeys = Object.keys(value);
-	    for (var i = 0, l = keys.length; i < l; i++) {
-	      var key = keys[i];
-	      if (value[key]) {
-	        addClass(this.el, key);
-	      } else {
-	        removeClass(this.el, key);
-	      }
-	    }
-	  },
-
-	  handleArray: function handleArray(value) {
-	    this.cleanup(value);
-	    for (var i = 0, l = value.length; i < l; i++) {
-	      if (value[i]) {
-	        addClass(this.el, value[i]);
-	      }
-	    }
-	    this.prevKeys = value.slice();
-	  },
-
-	  cleanup: function cleanup(value) {
-	    if (this.prevKeys) {
-	      var i = this.prevKeys.length;
-	      while (i--) {
-	        var key = this.prevKeys[i];
-	        if (key && (!value || !contains$1(value, key))) {
-	          removeClass(this.el, key);
-	        }
-	      }
-	    }
-	  }
-	};
-
-	function stringToObject(value) {
-	  var res = {};
-	  var keys = value.trim().split(/\s+/);
-	  var i = keys.length;
-	  while (i--) {
-	    res[keys[i]] = true;
-	  }
-	  return res;
-	}
-
-	function contains$1(value, key) {
-	  return isArray(value) ? value.indexOf(key) > -1 : hasOwn(value, key);
-	}
-
 	var internalDirectives = {
 	  style: style,
 	  'class': vClass,
 	  component: component,
 	  prop: propDef,
-	  transition: transition
+	  transition: transition$1
 	};
-
-	var propBindingModes = config._propBindingModes;
-	var empty = {};
-
-	// regexes
-	var identRE = /^[$_a-zA-Z]+[\w$]*$/;
-	var settablePathRE = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*|\[[^\[\]]+\])*$/;
-
-	/**
-	 * Compile props on a root element and return
-	 * a props link function.
-	 *
-	 * @param {Element|DocumentFragment} el
-	 * @param {Array} propOptions
-	 * @return {Function} propsLinkFn
-	 */
-
-	function compileProps(el, propOptions) {
-	  var props = [];
-	  var names = Object.keys(propOptions);
-	  var i = names.length;
-	  var options, name, attr, value, path, parsed, prop;
-	  while (i--) {
-	    name = names[i];
-	    options = propOptions[name] || empty;
-
-	    if (false) {
-	      warn('Do not use $data as prop.');
-	      continue;
-	    }
-
-	    // props could contain dashes, which will be
-	    // interpreted as minus calculations by the parser
-	    // so we need to camelize the path here
-	    path = camelize(name);
-	    if (!identRE.test(path)) {
-	      ("production") !== 'production' && warn('Invalid prop key: "' + name + '". Prop keys ' + 'must be valid identifiers.');
-	      continue;
-	    }
-
-	    prop = {
-	      name: name,
-	      path: path,
-	      options: options,
-	      mode: propBindingModes.ONE_WAY,
-	      raw: null
-	    };
-
-	    attr = hyphenate(name);
-	    // first check dynamic version
-	    if ((value = getBindAttr(el, attr)) === null) {
-	      if ((value = getBindAttr(el, attr + '.sync')) !== null) {
-	        prop.mode = propBindingModes.TWO_WAY;
-	      } else if ((value = getBindAttr(el, attr + '.once')) !== null) {
-	        prop.mode = propBindingModes.ONE_TIME;
-	      }
-	    }
-	    if (value !== null) {
-	      // has dynamic binding!
-	      prop.raw = value;
-	      parsed = parseDirective(value);
-	      value = parsed.expression;
-	      prop.filters = parsed.filters;
-	      // check binding type
-	      if (isLiteral(value)) {
-	        // for expressions containing literal numbers and
-	        // booleans, there's no need to setup a prop binding,
-	        // so we can optimize them as a one-time set.
-	        prop.optimizedLiteral = true;
-	      } else {
-	        prop.dynamic = true;
-	        // check non-settable path for two-way bindings
-	        if (false) {
-	          prop.mode = propBindingModes.ONE_WAY;
-	          warn('Cannot bind two-way prop with non-settable ' + 'parent path: ' + value);
-	        }
-	      }
-	      prop.parentPath = value;
-
-	      // warn required two-way
-	      if (false) {
-	        warn('Prop "' + name + '" expects a two-way binding type.');
-	      }
-	    } else if ((value = getAttr(el, attr)) !== null) {
-	      // has literal binding!
-	      prop.raw = value;
-	    } else if (options.required) {
-	      // warn missing required
-	      ("production") !== 'production' && warn('Missing required prop: ' + name);
-	    }
-	    // push prop
-	    props.push(prop);
-	  }
-	  return makePropsLinkFn(props);
-	}
-
-	/**
-	 * Build a function that applies props to a vm.
-	 *
-	 * @param {Array} props
-	 * @return {Function} propsLinkFn
-	 */
-
-	function makePropsLinkFn(props) {
-	  return function propsLinkFn(vm, scope) {
-	    // store resolved props info
-	    vm._props = {};
-	    var i = props.length;
-	    var prop, path, options, value, raw;
-	    while (i--) {
-	      prop = props[i];
-	      raw = prop.raw;
-	      path = prop.path;
-	      options = prop.options;
-	      vm._props[path] = prop;
-	      if (raw === null) {
-	        // initialize absent prop
-	        initProp(vm, prop, getDefault(vm, options));
-	      } else if (prop.dynamic) {
-	        // dynamic prop
-	        if (vm._context) {
-	          if (prop.mode === propBindingModes.ONE_TIME) {
-	            // one time binding
-	            value = (scope || vm._context).$get(prop.parentPath);
-	            initProp(vm, prop, value);
-	          } else {
-	            // dynamic binding
-	            vm._bindDir({
-	              name: 'prop',
-	              def: propDef,
-	              prop: prop
-	            }, null, null, scope); // el, host, scope
-	          }
-	        } else {
-	            ("production") !== 'production' && warn('Cannot bind dynamic prop on a root instance' + ' with no parent: ' + prop.name + '="' + raw + '"');
-	          }
-	      } else if (prop.optimizedLiteral) {
-	        // optimized literal, cast it and just set once
-	        var stripped = stripQuotes(raw);
-	        value = stripped === raw ? toBoolean(toNumber(raw)) : stripped;
-	        initProp(vm, prop, value);
-	      } else {
-	        // string literal, but we need to cater for
-	        // Boolean props with no value
-	        value = options.type === Boolean && raw === '' ? true : raw;
-	        initProp(vm, prop, value);
-	      }
-	    }
-	  };
-	}
-
-	/**
-	 * Get the default value of a prop.
-	 *
-	 * @param {Vue} vm
-	 * @param {Object} options
-	 * @return {*}
-	 */
-
-	function getDefault(vm, options) {
-	  // no default, return undefined
-	  if (!hasOwn(options, 'default')) {
-	    // absent boolean value defaults to false
-	    return options.type === Boolean ? false : undefined;
-	  }
-	  var def = options['default'];
-	  // warn against non-factory defaults for Object & Array
-	  if (isObject(def)) {
-	    ("production") !== 'production' && warn('Object/Array as default prop values will be shared ' + 'across multiple instances. Use a factory function ' + 'to return the default value instead.');
-	  }
-	  // call factory function for non-Function types
-	  return typeof def === 'function' && options.type !== Function ? def.call(vm) : def;
-	}
 
 	// special binding prefixes
 	var bindRE = /^v-bind:|^:/;
 	var onRE = /^v-on:|^@/;
-	var argRE = /:(.*)$/;
+	var dirAttrRE = /^v-([^:]+)(?:$|:(.*)$)/;
 	var modifierRE = /\.[^\.]+/g;
 	var transitionRE = /^(v-bind:|:)?transition$/;
 
-	// terminal directives
-	var terminalDirectives = ['for', 'if'];
-
 	// default directive priority
 	var DEFAULT_PRIORITY = 1000;
+	var DEFAULT_TERMINAL_PRIORITY = 2000;
 
 	/**
 	 * Compile a template and return a reusable composite link
@@ -6367,6 +6765,15 @@
 	 */
 
 	function linkAndCapture(linker, vm) {
+	  /* istanbul ignore if */
+	  if (true) {
+	    // reset directives before every capture in production
+	    // mode, so that when unlinking we don't need to splice
+	    // them out (which turns out to be a perf hit).
+	    // they are kept in development mode because they are
+	    // useful for Vue's own tests.
+	    vm._directives = [];
+	  }
 	  var originalDirCount = vm._directives.length;
 	  linker();
 	  var dirs = vm._directives.slice(originalDirCount);
@@ -6406,12 +6813,15 @@
 	 */
 
 	function makeUnlinkFn(vm, dirs, context, contextDirs) {
-	  return function unlink(destroying) {
+	  function unlink(destroying) {
 	    teardownDirs(vm, dirs, destroying);
 	    if (context && contextDirs) {
 	      teardownDirs(context, contextDirs);
 	    }
-	  };
+	  }
+	  // expose linked directives
+	  unlink.dirs = dirs;
+	  return unlink;
 	}
 
 	/**
@@ -6426,7 +6836,7 @@
 	  var i = dirs.length;
 	  while (i--) {
 	    dirs[i]._teardown();
-	    if (!destroying) {
+	    if (false) {
 	      vm._directives.$remove(dirs[i]);
 	    }
 	  }
@@ -6459,7 +6869,6 @@
 	 *
 	 * If this is a fragment instance, we only need to compile 1.
 	 *
-	 * @param {Vue} vm
 	 * @param {Element} el
 	 * @param {Object} options
 	 * @param {Object} contextOptions
@@ -6507,6 +6916,7 @@
 	    }
 	  }
 
+	  options._containerAttrs = options._replacerAttrs = null;
 	  return function rootLinkFn(vm, el, scope) {
 	    // link context scope dirs
 	    var context = vm._context;
@@ -6569,9 +6979,10 @@
 	  }
 	  var linkFn;
 	  var hasAttrs = el.hasAttributes();
+	  var attrs = hasAttrs && toArray(el.attributes);
 	  // check terminal directives (for & if)
 	  if (hasAttrs) {
-	    linkFn = checkTerminalDirectives(el, options);
+	    linkFn = checkTerminalDirectives(el, attrs, options);
 	  }
 	  // check element directives
 	  if (!linkFn) {
@@ -6583,7 +6994,7 @@
 	  }
 	  // normal directives
 	  if (!linkFn && hasAttrs) {
-	    linkFn = compileDirectives(el.attributes, options);
+	    linkFn = compileDirectives(attrs, options);
 	  }
 	  return linkFn;
 	}
@@ -6668,7 +7079,7 @@
 	    var parsed = parseDirective(token.value);
 	    token.descriptor = {
 	      name: type,
-	      def: publicDirectives[type],
+	      def: directives[type],
 	      expression: parsed.expression,
 	      filters: parsed.filters
 	    };
@@ -6765,7 +7176,9 @@
 
 	function checkElementDirectives(el, options) {
 	  var tag = el.tagName.toLowerCase();
-	  if (commonTagRE.test(tag)) return;
+	  if (commonTagRE.test(tag)) {
+	    return;
+	  }
 	  var def = resolveAsset(options, 'elementDirectives', tag);
 	  if (def) {
 	    return makeTerminalNodeLinkFn(el, tag, '', options, def);
@@ -6810,11 +7223,12 @@
 	 * If it finds one, return a terminal link function.
 	 *
 	 * @param {Element} el
+	 * @param {Array} attrs
 	 * @param {Object} options
 	 * @return {Function} terminalLinkFn
 	 */
 
-	function checkTerminalDirectives(el, options) {
+	function checkTerminalDirectives(el, attrs, options) {
 	  // skip v-pre
 	  if (getAttr(el, 'v-pre') !== null) {
 	    return skip;
@@ -6826,14 +7240,28 @@
 	      return skip;
 	    }
 	  }
-	  var value, dirName;
-	  for (var i = 0, l = terminalDirectives.length; i < l; i++) {
-	    dirName = terminalDirectives[i];
-	    /* eslint-disable no-cond-assign */
-	    if (value = el.getAttribute('v-' + dirName)) {
-	      return makeTerminalNodeLinkFn(el, dirName, value, options);
+
+	  var attr, name, value, modifiers, matched, dirName, rawName, arg, def, termDef;
+	  for (var i = 0, j = attrs.length; i < j; i++) {
+	    attr = attrs[i];
+	    modifiers = parseModifiers(attr.name);
+	    name = attr.name.replace(modifierRE, '');
+	    if (matched = name.match(dirAttrRE)) {
+	      def = resolveAsset(options, 'directives', matched[1]);
+	      if (def && def.terminal) {
+	        if (!termDef || (def.priority || DEFAULT_TERMINAL_PRIORITY) > termDef.priority) {
+	          termDef = def;
+	          rawName = attr.name;
+	          value = attr.value;
+	          dirName = matched[1];
+	          arg = matched[2];
+	        }
+	      }
 	    }
-	    /* eslint-enable no-cond-assign */
+	  }
+
+	  if (termDef) {
+	    return makeTerminalNodeLinkFn(el, dirName, value, options, termDef, rawName, arg, modifiers);
 	  }
 	}
 
@@ -6850,19 +7278,24 @@
 	 * @param {String} dirName
 	 * @param {String} value
 	 * @param {Object} options
-	 * @param {Object} [def]
+	 * @param {Object} def
+	 * @param {String} [rawName]
+	 * @param {String} [arg]
+	 * @param {Object} [modifiers]
 	 * @return {Function} terminalLinkFn
 	 */
 
-	function makeTerminalNodeLinkFn(el, dirName, value, options, def) {
+	function makeTerminalNodeLinkFn(el, dirName, value, options, def, rawName, arg, modifiers) {
 	  var parsed = parseDirective(value);
 	  var descriptor = {
 	    name: dirName,
+	    arg: arg,
 	    expression: parsed.expression,
 	    filters: parsed.filters,
 	    raw: value,
-	    // either an element directive, or if/for
-	    def: def || publicDirectives[dirName]
+	    attr: rawName,
+	    modifiers: modifiers,
+	    def: def
 	  };
 	  // check ref for v-for and router-view
 	  if (dirName === 'for' || dirName === 'router-view') {
@@ -6889,7 +7322,7 @@
 	function compileDirectives(attrs, options) {
 	  var i = attrs.length;
 	  var dirs = [];
-	  var attr, name, value, rawName, rawValue, dirName, arg, modifiers, dirDef, tokens;
+	  var attr, name, value, rawName, rawValue, dirName, arg, modifiers, dirDef, tokens, matched;
 	  while (i--) {
 	    attr = attrs[i];
 	    name = rawName = attr.name;
@@ -6905,7 +7338,7 @@
 	    if (tokens) {
 	      value = tokensToExp(tokens);
 	      arg = name;
-	      pushDir('bind', publicDirectives.bind, true);
+	      pushDir('bind', directives.bind, tokens);
 	      // warn against mixing mustaches with v-bind
 	      if (false) {
 	        if (name === 'class' && Array.prototype.some.call(attrs, function (attr) {
@@ -6925,7 +7358,7 @@
 	        // event handlers
 	        if (onRE.test(name)) {
 	          arg = name.replace(onRE, '');
-	          pushDir('on', publicDirectives.on);
+	          pushDir('on', directives.on);
 	        } else
 
 	          // attribute bindings
@@ -6935,19 +7368,14 @@
 	              pushDir(dirName, internalDirectives[dirName]);
 	            } else {
 	              arg = dirName;
-	              pushDir('bind', publicDirectives.bind);
+	              pushDir('bind', directives.bind);
 	            }
 	          } else
 
 	            // normal directives
-	            if (name.indexOf('v-') === 0) {
-	              // check arg
-	              arg = (arg = name.match(argRE)) && arg[1];
-	              if (arg) {
-	                name = name.replace(argRE, '');
-	              }
-	              // extract directive name
-	              dirName = name.slice(2);
+	            if (matched = name.match(dirAttrRE)) {
+	              dirName = matched[1];
+	              arg = matched[2];
 
 	              // skip v-else (when used with v-show)
 	              if (dirName === 'else') {
@@ -6971,11 +7399,12 @@
 	   *
 	   * @param {String} dirName
 	   * @param {Object|Function} def
-	   * @param {Boolean} [interp]
+	   * @param {Array} [interpTokens]
 	   */
 
-	  function pushDir(dirName, def, interp) {
-	    var parsed = parseDirective(value);
+	  function pushDir(dirName, def, interpTokens) {
+	    var hasOneTimeToken = interpTokens && hasOneTime(interpTokens);
+	    var parsed = !hasOneTimeToken && parseDirective(value);
 	    dirs.push({
 	      name: dirName,
 	      attr: rawName,
@@ -6983,9 +7412,13 @@
 	      def: def,
 	      arg: arg,
 	      modifiers: modifiers,
-	      expression: parsed.expression,
-	      filters: parsed.filters,
-	      interp: interp
+	      // conversion from interpolation strings with one-time token
+	      // to expression is differed until directive bind time so that we
+	      // have access to the actual vm context for one-time bindings.
+	      expression: parsed && parsed.expression,
+	      filters: parsed && parsed.filters,
+	      interp: interpTokens,
+	      hasOneTime: hasOneTimeToken
 	    });
 	  }
 
@@ -7030,6 +7463,20 @@
 	  };
 	}
 
+	/**
+	 * Check if an interpolation string contains one-time tokens.
+	 *
+	 * @param {Array} tokens
+	 * @return {Boolean}
+	 */
+
+	function hasOneTime(tokens) {
+	  var i = tokens.length;
+	  while (i--) {
+	    if (tokens[i].oneTime) return true;
+	  }
+	}
+
 	var specialCharRE = /[^\w\-:\.]/;
 
 	/**
@@ -7067,7 +7514,7 @@
 	      el = transcludeTemplate(el, options);
 	    }
 	  }
-	  if (el instanceof DocumentFragment) {
+	  if (isFragment(el)) {
 	    // anchors for fragment instance
 	    // passing in `persist: true` to avoid them being
 	    // discarded by IE during template cloning
@@ -7106,7 +7553,7 @@
 	      // non-element template
 	      replacer.nodeType !== 1 ||
 	      // single nested component
-	      tag === 'component' || resolveAsset(options, 'components', tag) || replacer.hasAttribute('is') || replacer.hasAttribute(':is') || replacer.hasAttribute('v-bind:is') ||
+	      tag === 'component' || resolveAsset(options, 'components', tag) || hasBindAttr(replacer, 'is') ||
 	      // element directive
 	      resolveAsset(options, 'elementDirectives', tag) ||
 	      // for block
@@ -7159,23 +7606,82 @@
 	    value = attrs[i].value;
 	    if (!to.hasAttribute(name) && !specialCharRE.test(name)) {
 	      to.setAttribute(name, value);
-	    } else if (name === 'class') {
-	      value.split(/\s+/).forEach(function (cls) {
+	    } else if (name === 'class' && !parseText(value)) {
+	      value.trim().split(/\s+/).forEach(function (cls) {
 	        addClass(to, cls);
 	      });
 	    }
 	  }
 	}
 
+	/**
+	 * Scan and determine slot content distribution.
+	 * We do this during transclusion instead at compile time so that
+	 * the distribution is decoupled from the compilation order of
+	 * the slots.
+	 *
+	 * @param {Element|DocumentFragment} template
+	 * @param {Element} content
+	 * @param {Vue} vm
+	 */
+
+	function resolveSlots(vm, content) {
+	  if (!content) {
+	    return;
+	  }
+	  var contents = vm._slotContents = Object.create(null);
+	  var el, name;
+	  for (var i = 0, l = content.children.length; i < l; i++) {
+	    el = content.children[i];
+	    /* eslint-disable no-cond-assign */
+	    if (name = el.getAttribute('slot')) {
+	      (contents[name] || (contents[name] = [])).push(el);
+	    }
+	    /* eslint-enable no-cond-assign */
+	    if (false) {
+	      warn('The "slot" attribute must be static.');
+	    }
+	  }
+	  for (name in contents) {
+	    contents[name] = extractFragment(contents[name], content);
+	  }
+	  if (content.hasChildNodes()) {
+	    contents['default'] = extractFragment(content.childNodes, content);
+	  }
+	}
+
+	/**
+	 * Extract qualified content nodes from a node list.
+	 *
+	 * @param {NodeList} nodes
+	 * @return {DocumentFragment}
+	 */
+
+	function extractFragment(nodes, parent) {
+	  var frag = document.createDocumentFragment();
+	  nodes = toArray(nodes);
+	  for (var i = 0, l = nodes.length; i < l; i++) {
+	    var node = nodes[i];
+	    if (isTemplate(node) && !node.hasAttribute('v-if') && !node.hasAttribute('v-for')) {
+	      parent.removeChild(node);
+	      node = parseTemplate(node);
+	    }
+	    frag.appendChild(node);
+	  }
+	  return frag;
+	}
+
+
+
 	var compiler = Object.freeze({
 		compile: compile,
 		compileAndLinkProps: compileAndLinkProps,
 		compileRoot: compileRoot,
-		transclude: transclude
+		transclude: transclude,
+		resolveSlots: resolveSlots
 	});
 
 	function stateMixin (Vue) {
-
 	  /**
 	   * Accessor for `$data` property, since setting $data
 	   * requires observing the new object and updating
@@ -7232,28 +7738,29 @@
 	   */
 
 	  Vue.prototype._initData = function () {
-	    var propsData = this._data;
-	    var optionsDataFn = this.$options.data;
-	    var optionsData = optionsDataFn && optionsDataFn();
-	    if (optionsData) {
-	      this._data = optionsData;
-	      for (var prop in propsData) {
-	        if (false) {
-	          warn('Data field "' + prop + '" is already defined ' + 'as a prop. Use prop default value instead.');
-	        }
-	        if (this._props[prop].raw !== null || !hasOwn(optionsData, prop)) {
-	          set(optionsData, prop, propsData[prop]);
-	        }
-	      }
+	    var dataFn = this.$options.data;
+	    var data = this._data = dataFn ? dataFn() : {};
+	    if (!isPlainObject(data)) {
+	      data = {};
+	      ("production") !== 'production' && warn('data functions should return an object.');
 	    }
-	    var data = this._data;
+	    var props = this._props;
+	    var runtimeData = this._runtimeData ? typeof this._runtimeData === 'function' ? this._runtimeData() : this._runtimeData : null;
 	    // proxy data on instance
 	    var keys = Object.keys(data);
 	    var i, key;
 	    i = keys.length;
 	    while (i--) {
 	      key = keys[i];
-	      this._proxy(key);
+	      // there are two scenarios where we can proxy a data key:
+	      // 1. it's not already defined as a prop
+	      // 2. it's provided via a instantiation option AND there are no
+	      //    template prop present
+	      if (!props || !hasOwn(props, key) || runtimeData && hasOwn(runtimeData, key) && props[key].raw === null) {
+	        this._proxy(key);
+	      } else if (false) {
+	        warn('Data field "' + key + '" is already defined ' + 'as a prop. Use prop default value instead.');
+	      }
 	    }
 	    // observe data
 	    observe(data, this);
@@ -7363,8 +7870,8 @@
 	          def.get = makeComputedGetter(userDef, this);
 	          def.set = noop;
 	        } else {
-	          def.get = userDef.get ? userDef.cache !== false ? makeComputedGetter(userDef.get, this) : bind$1(userDef.get, this) : noop;
-	          def.set = userDef.set ? bind$1(userDef.set, this) : noop;
+	          def.get = userDef.get ? userDef.cache !== false ? makeComputedGetter(userDef.get, this) : bind(userDef.get, this) : noop;
+	          def.set = userDef.set ? bind(userDef.set, this) : noop;
 	        }
 	        Object.defineProperty(this, key, def);
 	      }
@@ -7396,7 +7903,7 @@
 	    var methods = this.$options.methods;
 	    if (methods) {
 	      for (var key in methods) {
-	        this[key] = bind$1(methods[key], this);
+	        this[key] = bind(methods[key], this);
 	      }
 	    }
 	  };
@@ -7418,7 +7925,6 @@
 	var eventRE = /^v-on:|^@/;
 
 	function eventsMixin (Vue) {
-
 	  /**
 	   * Setup the instance's option events & watchers.
 	   * If the value is a string, we pull it from the
@@ -7449,7 +7955,12 @@
 	      if (eventRE.test(name)) {
 	        name = name.replace(eventRE, '');
 	        handler = (vm._scope || vm._context).$eval(attrs[i].value, true);
-	        vm.$on(name.replace(eventRE), handler);
+	        if (typeof handler === 'function') {
+	          handler._fromParent = true;
+	          vm.$on(name.replace(eventRE), handler);
+	        } else if (false) {
+	          warn('v-on:' + name + '="' + attrs[i].value + '"' + (vm.$options.name ? ' on component <' + vm.$options.name + '>' : '') + ' expects a function value, got ' + handler);
+	        }
 	      }
 	    }
 	  }
@@ -7566,6 +8077,7 @@
 	   */
 
 	  Vue.prototype._callHook = function (hook) {
+	    this.$emit('pre-hook:' + hook);
 	    var handlers = this.$options[hook];
 	    if (handlers) {
 	      for (var i = 0, j = handlers.length; i < j; i++) {
@@ -7584,18 +8096,21 @@
 	 * It registers a watcher with the expression and calls
 	 * the DOM update function when a change is triggered.
 	 *
-	 * @param {String} name
-	 * @param {Node} el
-	 * @param {Vue} vm
 	 * @param {Object} descriptor
 	 *                 - {String} name
 	 *                 - {Object} def
 	 *                 - {String} expression
 	 *                 - {Array<Object>} [filters]
+	 *                 - {Object} [modifiers]
 	 *                 - {Boolean} literal
 	 *                 - {String} attr
+	 *                 - {String} arg
 	 *                 - {String} raw
-	 * @param {Object} def - directive definition object
+	 *                 - {String} [ref]
+	 *                 - {Array<Object>} [interp]
+	 *                 - {Boolean} [hasOneTime]
+	 * @param {Vue} vm
+	 * @param {Node} el
 	 * @param {Vue} [host] - transclusion host component
 	 * @param {Object} [scope] - v-for scope
 	 * @param {Fragment} [frag] - owner fragment
@@ -7631,8 +8146,6 @@
 	 * Initialize the directive, mixin definition properties,
 	 * setup the watcher, call definition bind() and update()
 	 * if present.
-	 *
-	 * @param {Object} def
 	 */
 
 	Directive.prototype._bind = function () {
@@ -7660,6 +8173,7 @@
 	  if (this.bind) {
 	    this.bind();
 	  }
+	  this._bound = true;
 
 	  if (this.literal) {
 	    this.update && this.update(descriptor.raw);
@@ -7675,8 +8189,8 @@
 	    } else {
 	      this._update = noop;
 	    }
-	    var preProcess = this._preProcess ? bind$1(this._preProcess, this) : null;
-	    var postProcess = this._postProcess ? bind$1(this._postProcess, this) : null;
+	    var preProcess = this._preProcess ? bind(this._preProcess, this) : null;
+	    var postProcess = this._postProcess ? bind(this._postProcess, this) : null;
 	    var watcher = this._watcher = new Watcher(this.vm, this.expression, this._update, // callback
 	    {
 	      filters: this.filters,
@@ -7695,7 +8209,6 @@
 	      this.update(watcher.value);
 	    }
 	  }
-	  this._bound = true;
 	};
 
 	/**
@@ -7713,7 +8226,7 @@
 	  var i = params.length;
 	  var key, val, mappedKey;
 	  while (i--) {
-	    key = params[i];
+	    key = hyphenate(params[i]);
 	    mappedKey = camelize(key);
 	    val = getBindAttr(this.el, key);
 	    if (val != null) {
@@ -7752,7 +8265,8 @@
 	      called = true;
 	    }
 	  }, {
-	    immediate: true
+	    immediate: true,
+	    user: false
 	  });(this._paramUnwatchFns || (this._paramUnwatchFns = [])).push(unwatch);
 	};
 
@@ -7828,10 +8342,11 @@
 	 *
 	 * @param {String} event
 	 * @param {Function} handler
+	 * @param {Boolean} [useCapture]
 	 */
 
-	Directive.prototype.on = function (event, handler) {
-	  on$1(this.el, event, handler);(this._listeners || (this._listeners = [])).push([event, handler]);
+	Directive.prototype.on = function (event, handler, useCapture) {
+	  on(this.el, event, handler, useCapture);(this._listeners || (this._listeners = [])).push([event, handler]);
 	};
 
 	/**
@@ -7870,7 +8385,6 @@
 	};
 
 	function lifecycleMixin (Vue) {
-
 	  /**
 	   * Update v-ref for component.
 	   *
@@ -7901,7 +8415,6 @@
 	   * Otherwise we need to call transclude/compile/link here.
 	   *
 	   * @param {Element} el
-	   * @return {Element}
 	   */
 
 	  Vue.prototype._compile = function (el) {
@@ -7916,10 +8429,18 @@
 	    el = transclude(el, options);
 	    this._initElement(el);
 
+	    // handle v-pre on root node (#2026)
+	    if (el.nodeType === 1 && getAttr(el, 'v-pre') !== null) {
+	      return;
+	    }
+
 	    // root is always compiled per-instance, because
 	    // container attrs and props can be different every time.
 	    var contextOptions = this._context && this._context.$options;
 	    var rootLinker = compileRoot(el, options, contextOptions);
+
+	    // resolve slot distribution
+	    resolveSlots(this, options._content);
 
 	    // compile and link the rest
 	    var contentLinkFn;
@@ -7954,7 +8475,6 @@
 
 	    this._isCompiled = true;
 	    this._callHook('compiled');
-	    return el;
 	  };
 
 	  /**
@@ -7965,7 +8485,7 @@
 	   */
 
 	  Vue.prototype._initElement = function (el) {
-	    if (el instanceof DocumentFragment) {
+	    if (isFragment(el)) {
 	      this._isFragment = true;
 	      this.$el = this._fragmentStart = el.firstChild;
 	      this._fragmentEnd = el.lastChild;
@@ -7984,10 +8504,8 @@
 	  /**
 	   * Create and bind a directive to an element.
 	   *
-	   * @param {String} name - directive name
+	   * @param {Object} descriptor - parsed directive descriptor
 	   * @param {Node} node   - target node
-	   * @param {Object} desc - parsed directive descriptor
-	   * @param {Object} def  - directive definition object
 	   * @param {Vue} [host] - transclusion host component
 	   * @param {Object} [scope] - v-for scope
 	   * @param {Fragment} [frag] - owner fragment
@@ -8013,6 +8531,30 @@
 	      }
 	      return;
 	    }
+
+	    var destroyReady;
+	    var pendingRemoval;
+
+	    var self = this;
+	    // Cleanup should be called either synchronously or asynchronoysly as
+	    // callback of this.$remove(), or if remove and deferCleanup are false.
+	    // In any case it should be called after all other removing, unbinding and
+	    // turning of is done
+	    var cleanupIfPossible = function cleanupIfPossible() {
+	      if (destroyReady && !pendingRemoval && !deferCleanup) {
+	        self._cleanup();
+	      }
+	    };
+
+	    // remove DOM element
+	    if (remove && this.$el) {
+	      pendingRemoval = true;
+	      this.$remove(function () {
+	        pendingRemoval = false;
+	        cleanupIfPossible();
+	      });
+	    }
+
 	    this._callHook('beforeDestroy');
 	    this._isBeingDestroyed = true;
 	    var i;
@@ -8046,15 +8588,9 @@
 	    if (this.$el) {
 	      this.$el.__vue__ = null;
 	    }
-	    // remove DOM element
-	    var self = this;
-	    if (remove && this.$el) {
-	      this.$remove(function () {
-	        self._cleanup();
-	      });
-	    } else if (!deferCleanup) {
-	      this._cleanup();
-	    }
+
+	    destroyReady = true;
+	    cleanupIfPossible();
 	  };
 
 	  /**
@@ -8096,7 +8632,6 @@
 	}
 
 	function miscMixin (Vue) {
-
 	  /**
 	   * Apply a list of filter (descriptors) to a value.
 	   * Using plain for loops here because this will be called in
@@ -8113,7 +8648,7 @@
 	  Vue.prototype._applyFilters = function (value, oldValue, filters, write) {
 	    var filter, fn, args, arg, offset, i, l, j, k;
 	    for (i = 0, l = filters.length; i < l; i++) {
-	      filter = filters[i];
+	      filter = filters[write ? l - i - 1 : i];
 	      fn = resolveAsset(this.$options, 'filters', filter.name);
 	      if (false) {
 	        assertAsset(fn, 'filter', filter.name);
@@ -8141,14 +8676,19 @@
 	   * resolves asynchronously and caches the resolved
 	   * constructor on the factory.
 	   *
-	   * @param {String} id
+	   * @param {String|Function} value
 	   * @param {Function} cb
 	   */
 
-	  Vue.prototype._resolveComponent = function (id, cb) {
-	    var factory = resolveAsset(this.$options, 'components', id);
-	    if (false) {
-	      assertAsset(factory, 'component', id);
+	  Vue.prototype._resolveComponent = function (value, cb) {
+	    var factory;
+	    if (typeof value === 'function') {
+	      factory = value;
+	    } else {
+	      factory = resolveAsset(this.$options, 'components', value);
+	      if (false) {
+	        assertAsset(factory, 'component', value);
+	      }
 	    }
 	    if (!factory) {
 	      return;
@@ -8164,7 +8704,7 @@
 	      } else {
 	        factory.requested = true;
 	        var cbs = factory.pendingCallbacks = [cb];
-	        factory(function resolve(res) {
+	        factory.call(this, function resolve(res) {
 	          if (isPlainObject(res)) {
 	            res = Vue.extend(res);
 	          }
@@ -8175,7 +8715,7 @@
 	            cbs[i](res);
 	          }
 	        }, function reject(reason) {
-	          ("production") !== 'production' && warn('Failed to resolve async component: ' + id + '. ' + (reason ? '\nReason: ' + reason : ''));
+	          ("production") !== 'production' && warn('Failed to resolve async component' + (typeof value === 'string' ? ': ' + value : '') + '. ' + (reason ? '\nReason: ' + reason : ''));
 	        });
 	      }
 	    } else {
@@ -8185,159 +8725,9 @@
 	  };
 	}
 
-	function globalAPI (Vue) {
-
-	  /**
-	   * Expose useful internals
-	   */
-
-	  Vue.util = util;
-	  Vue.config = config;
-	  Vue.set = set;
-	  Vue['delete'] = del;
-	  Vue.nextTick = nextTick;
-
-	  /**
-	   * The following are exposed for advanced usage / plugins
-	   */
-
-	  Vue.compiler = compiler;
-	  Vue.FragmentFactory = FragmentFactory;
-	  Vue.internalDirectives = internalDirectives;
-	  Vue.parsers = {
-	    path: path,
-	    text: text$1,
-	    template: template,
-	    directive: directive,
-	    expression: expression
-	  };
-
-	  /**
-	   * Each instance constructor, including Vue, has a unique
-	   * cid. This enables us to create wrapped "child
-	   * constructors" for prototypal inheritance and cache them.
-	   */
-
-	  Vue.cid = 0;
-	  var cid = 1;
-
-	  /**
-	   * Class inheritance
-	   *
-	   * @param {Object} extendOptions
-	   */
-
-	  Vue.extend = function (extendOptions) {
-	    extendOptions = extendOptions || {};
-	    var Super = this;
-	    var isFirstExtend = Super.cid === 0;
-	    if (isFirstExtend && extendOptions._Ctor) {
-	      return extendOptions._Ctor;
-	    }
-	    var name = extendOptions.name || Super.options.name;
-	    var Sub = createClass(name || 'VueComponent');
-	    Sub.prototype = Object.create(Super.prototype);
-	    Sub.prototype.constructor = Sub;
-	    Sub.cid = cid++;
-	    Sub.options = mergeOptions(Super.options, extendOptions);
-	    Sub['super'] = Super;
-	    // allow further extension
-	    Sub.extend = Super.extend;
-	    // create asset registers, so extended classes
-	    // can have their private assets too.
-	    config._assetTypes.forEach(function (type) {
-	      Sub[type] = Super[type];
-	    });
-	    // enable recursive self-lookup
-	    if (name) {
-	      Sub.options.components[name] = Sub;
-	    }
-	    // cache constructor
-	    if (isFirstExtend) {
-	      extendOptions._Ctor = Sub;
-	    }
-	    return Sub;
-	  };
-
-	  /**
-	   * A function that returns a sub-class constructor with the
-	   * given name. This gives us much nicer output when
-	   * logging instances in the console.
-	   *
-	   * @param {String} name
-	   * @return {Function}
-	   */
-
-	  function createClass(name) {
-	    return new Function('return function ' + classify(name) + ' (options) { this._init(options) }')();
-	  }
-
-	  /**
-	   * Plugin system
-	   *
-	   * @param {Object} plugin
-	   */
-
-	  Vue.use = function (plugin) {
-	    /* istanbul ignore if */
-	    if (plugin.installed) {
-	      return;
-	    }
-	    // additional parameters
-	    var args = toArray(arguments, 1);
-	    args.unshift(this);
-	    if (typeof plugin.install === 'function') {
-	      plugin.install.apply(plugin, args);
-	    } else {
-	      plugin.apply(null, args);
-	    }
-	    plugin.installed = true;
-	    return this;
-	  };
-
-	  /**
-	   * Apply a global mixin by merging it into the default
-	   * options.
-	   */
-
-	  Vue.mixin = function (mixin) {
-	    Vue.options = mergeOptions(Vue.options, mixin);
-	  };
-
-	  /**
-	   * Create asset registration methods with the following
-	   * signature:
-	   *
-	   * @param {String} id
-	   * @param {*} definition
-	   */
-
-	  config._assetTypes.forEach(function (type) {
-	    Vue[type] = function (id, definition) {
-	      if (!definition) {
-	        return this.options[type + 's'][id];
-	      } else {
-	        /* istanbul ignore if */
-	        if (false) {
-	          if (type === 'component' && commonTagRE.test(id)) {
-	            warn('Do not use built-in HTML elements as component ' + 'id: ' + id);
-	          }
-	        }
-	        if (type === 'component' && isPlainObject(definition)) {
-	          definition.name = id;
-	          definition = Vue.extend(definition);
-	        }
-	        this.options[type + 's'][id] = definition;
-	        return definition;
-	      }
-	    };
-	  });
-	}
-
-	var filterRE = /[^|]\|[^|]/;
+	var filterRE$1 = /[^|]\|[^|]/;
 
 	function dataAPI (Vue) {
-
 	  /**
 	   * Get the value from an expression on this vm.
 	   *
@@ -8352,7 +8742,10 @@
 	      if (asStatement && !isSimplePath(exp)) {
 	        var self = this;
 	        return function statementHandler() {
-	          res.get.call(self, self);
+	          self.$arguments = toArray(arguments);
+	          var result = res.get.call(self, self);
+	          self.$arguments = null;
+	          return result;
 	        };
 	      } else {
 	        try {
@@ -8409,7 +8802,9 @@
 	    }
 	    var watcher = new Watcher(vm, expOrFn, cb, {
 	      deep: options && options.deep,
-	      filters: parsed && parsed.filters
+	      sync: options && options.sync,
+	      filters: parsed && parsed.filters,
+	      user: !options || options.user !== false
 	    });
 	    if (options && options.immediate) {
 	      cb.call(vm, watcher.value);
@@ -8429,7 +8824,7 @@
 
 	  Vue.prototype.$eval = function (text, asStatement) {
 	    // check for filters.
-	    if (filterRE.test(text)) {
+	    if (filterRE$1.test(text)) {
 	      var dir = parseDirective(text);
 	      // the filter regex check might give false positive
 	      // for pipes inside strings, so it's possible that
@@ -8480,8 +8875,14 @@
 	    }
 	    // include computed fields
 	    if (!path) {
-	      for (var key in this.$options.computed) {
+	      var key;
+	      for (key in this.$options.computed) {
 	        data[key] = clean(this[key]);
+	      }
+	      if (this._props) {
+	        for (key in this._props) {
+	          data[key] = clean(this[key]);
+	        }
 	      }
 	    }
 	    console.log(data);
@@ -8501,7 +8902,6 @@
 	}
 
 	function domAPI (Vue) {
-
 	  /**
 	   * Convenience on-instance nextTick. The callback is
 	   * auto-bound to the instance, and this avoids component
@@ -8687,7 +9087,6 @@
 	}
 
 	function eventsAPI (Vue) {
-
 	  /**
 	   * Listen on the given `event` with `fn`.
 	   *
@@ -8770,19 +9169,32 @@
 	  /**
 	   * Trigger an event on self.
 	   *
-	   * @param {String} event
+	   * @param {String|Object} event
 	   * @return {Boolean} shouldPropagate
 	   */
 
 	  Vue.prototype.$emit = function (event) {
+	    var isSource = typeof event === 'string';
+	    event = isSource ? event : event.name;
 	    var cbs = this._events[event];
-	    var shouldPropagate = !cbs;
+	    var shouldPropagate = isSource || !cbs;
 	    if (cbs) {
 	      cbs = cbs.length > 1 ? toArray(cbs) : cbs;
+	      // this is a somewhat hacky solution to the question raised
+	      // in #2102: for an inline component listener like <comp @test="doThis">,
+	      // the propagation handling is somewhat broken. Therefore we
+	      // need to treat these inline callbacks differently.
+	      var hasParentCbs = isSource && cbs.some(function (cb) {
+	        return cb._fromParent;
+	      });
+	      if (hasParentCbs) {
+	        shouldPropagate = false;
+	      }
 	      var args = toArray(arguments, 1);
 	      for (var i = 0, l = cbs.length; i < l; i++) {
-	        var res = cbs[i].apply(this, args);
-	        if (res === true) {
+	        var cb = cbs[i];
+	        var res = cb.apply(this, args);
+	        if (res === true && (!hasParentCbs || cb._fromParent)) {
 	          shouldPropagate = true;
 	        }
 	      }
@@ -8793,20 +9205,28 @@
 	  /**
 	   * Recursively broadcast an event to all children instances.
 	   *
-	   * @param {String} event
+	   * @param {String|Object} event
 	   * @param {...*} additional arguments
 	   */
 
 	  Vue.prototype.$broadcast = function (event) {
+	    var isSource = typeof event === 'string';
+	    event = isSource ? event : event.name;
 	    // if no child has registered for this event,
 	    // then there's no need to broadcast.
 	    if (!this._eventsCount[event]) return;
 	    var children = this.$children;
+	    var args = toArray(arguments);
+	    if (isSource) {
+	      // use object event to indicate non-source emit
+	      // on children
+	      args[0] = { name: event, source: this };
+	    }
 	    for (var i = 0, l = children.length; i < l; i++) {
 	      var child = children[i];
-	      var shouldPropagate = child.$emit.apply(child, arguments);
+	      var shouldPropagate = child.$emit.apply(child, args);
 	      if (shouldPropagate) {
-	        child.$broadcast.apply(child, arguments);
+	        child.$broadcast.apply(child, args);
 	      }
 	    }
 	    return this;
@@ -8819,11 +9239,16 @@
 	   * @param {...*} additional arguments
 	   */
 
-	  Vue.prototype.$dispatch = function () {
-	    this.$emit.apply(this, arguments);
+	  Vue.prototype.$dispatch = function (event) {
+	    var shouldPropagate = this.$emit.apply(this, arguments);
+	    if (!shouldPropagate) return;
 	    var parent = this.$parent;
+	    var args = toArray(arguments);
+	    // use object event to indicate non-source emit
+	    // on parents
+	    args[0] = { name: event, source: this };
 	    while (parent) {
-	      var shouldPropagate = parent.$emit.apply(parent, arguments);
+	      shouldPropagate = parent.$emit.apply(parent, args);
 	      parent = shouldPropagate ? parent.$parent : null;
 	    }
 	    return this;
@@ -8853,7 +9278,6 @@
 	}
 
 	function lifecycleAPI (Vue) {
-
 	  /**
 	   * Set instance target element and kick off the compilation
 	   * process. The passed in `el` can be a selector string, an
@@ -8897,6 +9321,9 @@
 	  /**
 	   * Teardown the instance, simply delegate to the internal
 	   * _destroy.
+	   *
+	   * @param {Boolean} remove
+	   * @param {Boolean} deferCleanup
 	   */
 
 	  Vue.prototype.$destroy = function (remove, deferCleanup) {
@@ -8909,6 +9336,8 @@
 	   *
 	   * @param {Element|DocumentFragment} el
 	   * @param {Vue} [host]
+	   * @param {Object} [scope]
+	   * @param {Fragment} [frag]
 	   * @return {Function}
 	   */
 
@@ -8942,12 +9371,105 @@
 	lifecycleMixin(Vue);
 	miscMixin(Vue);
 
-	// install APIs
-	globalAPI(Vue);
+	// install instance APIs
 	dataAPI(Vue);
 	domAPI(Vue);
 	eventsAPI(Vue);
 	lifecycleAPI(Vue);
+
+	var slot = {
+
+	  priority: SLOT,
+	  params: ['name'],
+
+	  bind: function bind() {
+	    // this was resolved during component transclusion
+	    var name = this.params.name || 'default';
+	    var content = this.vm._slotContents && this.vm._slotContents[name];
+	    if (!content || !content.hasChildNodes()) {
+	      this.fallback();
+	    } else {
+	      this.compile(content.cloneNode(true), this.vm._context, this.vm);
+	    }
+	  },
+
+	  compile: function compile(content, context, host) {
+	    if (content && context) {
+	      if (this.el.hasChildNodes() && content.childNodes.length === 1 && content.childNodes[0].nodeType === 1 && content.childNodes[0].hasAttribute('v-if')) {
+	        // if the inserted slot has v-if
+	        // inject fallback content as the v-else
+	        var elseBlock = document.createElement('template');
+	        elseBlock.setAttribute('v-else', '');
+	        elseBlock.innerHTML = this.el.innerHTML;
+	        // the else block should be compiled in child scope
+	        elseBlock._context = this.vm;
+	        content.appendChild(elseBlock);
+	      }
+	      var scope = host ? host._scope : this._scope;
+	      this.unlink = context.$compile(content, host, scope, this._frag);
+	    }
+	    if (content) {
+	      replace(this.el, content);
+	    } else {
+	      remove(this.el);
+	    }
+	  },
+
+	  fallback: function fallback() {
+	    this.compile(extractContent(this.el, true), this.vm);
+	  },
+
+	  unbind: function unbind() {
+	    if (this.unlink) {
+	      this.unlink();
+	    }
+	  }
+	};
+
+	var partial = {
+
+	  priority: PARTIAL,
+
+	  params: ['name'],
+
+	  // watch changes to name for dynamic partials
+	  paramWatchers: {
+	    name: function name(value) {
+	      vIf.remove.call(this);
+	      if (value) {
+	        this.insert(value);
+	      }
+	    }
+	  },
+
+	  bind: function bind() {
+	    this.anchor = createAnchor('v-partial');
+	    replace(this.el, this.anchor);
+	    this.insert(this.params.name);
+	  },
+
+	  insert: function insert(id) {
+	    var partial = resolveAsset(this.vm.$options, 'partials', id);
+	    if (false) {
+	      assertAsset(partial, 'partial', id);
+	    }
+	    if (partial) {
+	      this.factory = new FragmentFactory(this.vm, partial);
+	      vIf.insert.call(this);
+	    }
+	  },
+
+	  unbind: function unbind() {
+	    if (this.frag) {
+	      this.frag.destroy();
+	    }
+	  }
+	};
+
+	var elementDirectives = {
+	  slot: slot,
+	  partial: partial
+	};
 
 	var convertArray = vFor._postProcess;
 
@@ -8960,6 +9482,7 @@
 
 	function limitBy(arr, n, offset) {
 	  offset = offset ? parseInt(offset, 10) : 0;
+	  n = toNumber(n);
 	  return typeof n === 'number' ? arr.slice(offset, offset + n) : arr;
 	}
 
@@ -9133,7 +9656,7 @@
 	    var head = i > 0 ? _int.slice(0, i) + (_int.length > 3 ? ',' : '') : '';
 	    var _float = stringified.slice(-3);
 	    var sign = value < 0 ? '-' : '';
-	    return _currency + sign + head + _int.slice(i).replace(digitsRE, '$1,') + _float;
+	    return sign + _currency + head + _int.slice(i).replace(digitsRE, '$1,') + _float;
 	  },
 
 	  /**
@@ -9171,202 +9694,237 @@
 	  }
 	};
 
-	var partial = {
+	function installGlobalAPI (Vue) {
+	  /**
+	   * Vue and every constructor that extends Vue has an
+	   * associated options object, which can be accessed during
+	   * compilation steps as `this.constructor.options`.
+	   *
+	   * These can be seen as the default options of every
+	   * Vue instance.
+	   */
 
-	  priority: 1750,
+	  Vue.options = {
+	    directives: directives,
+	    elementDirectives: elementDirectives,
+	    filters: filters,
+	    transitions: {},
+	    components: {},
+	    partials: {},
+	    replace: true
+	  };
 
-	  params: ['name'],
+	  /**
+	   * Expose useful internals
+	   */
 
-	  // watch changes to name for dynamic partials
-	  paramWatchers: {
-	    name: function name(value) {
-	      vIf.remove.call(this);
-	      if (value) {
-	        this.insert(value);
+	  Vue.util = util;
+	  Vue.config = config;
+	  Vue.set = set;
+	  Vue['delete'] = del;
+	  Vue.nextTick = nextTick;
+
+	  /**
+	   * The following are exposed for advanced usage / plugins
+	   */
+
+	  Vue.compiler = compiler;
+	  Vue.FragmentFactory = FragmentFactory;
+	  Vue.internalDirectives = internalDirectives;
+	  Vue.parsers = {
+	    path: path,
+	    text: text,
+	    template: template,
+	    directive: directive,
+	    expression: expression
+	  };
+
+	  /**
+	   * Each instance constructor, including Vue, has a unique
+	   * cid. This enables us to create wrapped "child
+	   * constructors" for prototypal inheritance and cache them.
+	   */
+
+	  Vue.cid = 0;
+	  var cid = 1;
+
+	  /**
+	   * Class inheritance
+	   *
+	   * @param {Object} extendOptions
+	   */
+
+	  Vue.extend = function (extendOptions) {
+	    extendOptions = extendOptions || {};
+	    var Super = this;
+	    var isFirstExtend = Super.cid === 0;
+	    if (isFirstExtend && extendOptions._Ctor) {
+	      return extendOptions._Ctor;
+	    }
+	    var name = extendOptions.name || Super.options.name;
+	    if (false) {
+	      if (!/^[a-zA-Z][\w-]*$/.test(name)) {
+	        warn('Invalid component name: "' + name + '". Component names ' + 'can only contain alphanumeric characaters and the hyphen.');
+	        name = null;
 	      }
 	    }
-	  },
-
-	  bind: function bind() {
-	    this.anchor = createAnchor('v-partial');
-	    replace(this.el, this.anchor);
-	    this.insert(this.params.name);
-	  },
-
-	  insert: function insert(id) {
-	    var partial = resolveAsset(this.vm.$options, 'partials', id);
-	    if (false) {
-	      assertAsset(partial, 'partial', id);
+	    var Sub = createClass(name || 'VueComponent');
+	    Sub.prototype = Object.create(Super.prototype);
+	    Sub.prototype.constructor = Sub;
+	    Sub.cid = cid++;
+	    Sub.options = mergeOptions(Super.options, extendOptions);
+	    Sub['super'] = Super;
+	    // allow further extension
+	    Sub.extend = Super.extend;
+	    // create asset registers, so extended classes
+	    // can have their private assets too.
+	    config._assetTypes.forEach(function (type) {
+	      Sub[type] = Super[type];
+	    });
+	    // enable recursive self-lookup
+	    if (name) {
+	      Sub.options.components[name] = Sub;
 	    }
-	    if (partial) {
-	      this.factory = new FragmentFactory(this.vm, partial);
-	      vIf.insert.call(this);
+	    // cache constructor
+	    if (isFirstExtend) {
+	      extendOptions._Ctor = Sub;
 	    }
-	  },
+	    return Sub;
+	  };
 
-	  unbind: function unbind() {
-	    if (this.frag) {
-	      this.frag.destroy();
-	    }
+	  /**
+	   * A function that returns a sub-class constructor with the
+	   * given name. This gives us much nicer output when
+	   * logging instances in the console.
+	   *
+	   * @param {String} name
+	   * @return {Function}
+	   */
+
+	  function createClass(name) {
+	    /* eslint-disable no-new-func */
+	    return new Function('return function ' + classify(name) + ' (options) { this._init(options) }')();
+	    /* eslint-enable no-new-func */
 	  }
-	};
 
-	// This is the elementDirective that handles <content>
-	// transclusions. It relies on the raw content of an
-	// instance being stored as `$options._content` during
-	// the transclude phase.
+	  /**
+	   * Plugin system
+	   *
+	   * @param {Object} plugin
+	   */
 
-	var slot = {
-
-	  priority: 1750,
-
-	  params: ['name'],
-
-	  bind: function bind() {
-	    var host = this.vm;
-	    var raw = host.$options._content;
-	    var content;
-	    if (!raw) {
-	      this.fallback();
+	  Vue.use = function (plugin) {
+	    /* istanbul ignore if */
+	    if (plugin.installed) {
 	      return;
 	    }
-	    var context = host._context;
-	    var slotName = this.params.name;
-	    if (!slotName) {
-	      // Default content
-	      var self = this;
-	      var compileDefaultContent = function compileDefaultContent() {
-	        self.compile(extractFragment(raw.childNodes, raw, true), context, host);
-	      };
-	      if (!host._isCompiled) {
-	        // defer until the end of instance compilation,
-	        // because the default outlet must wait until all
-	        // other possible outlets with selectors have picked
-	        // out their contents.
-	        host.$once('hook:compiled', compileDefaultContent);
-	      } else {
-	        compileDefaultContent();
-	      }
+	    // additional parameters
+	    var args = toArray(arguments, 1);
+	    args.unshift(this);
+	    if (typeof plugin.install === 'function') {
+	      plugin.install.apply(plugin, args);
 	    } else {
-	      var selector = '[slot="' + slotName + '"]';
-	      var nodes = raw.querySelectorAll(selector);
-	      if (nodes.length) {
-	        content = extractFragment(nodes, raw);
-	        if (content.hasChildNodes()) {
-	          this.compile(content, context, host);
-	        } else {
-	          this.fallback();
+	      plugin.apply(null, args);
+	    }
+	    plugin.installed = true;
+	    return this;
+	  };
+
+	  /**
+	   * Apply a global mixin by merging it into the default
+	   * options.
+	   */
+
+	  Vue.mixin = function (mixin) {
+	    Vue.options = mergeOptions(Vue.options, mixin);
+	  };
+
+	  /**
+	   * Create asset registration methods with the following
+	   * signature:
+	   *
+	   * @param {String} id
+	   * @param {*} definition
+	   */
+
+	  config._assetTypes.forEach(function (type) {
+	    Vue[type] = function (id, definition) {
+	      if (!definition) {
+	        return this.options[type + 's'][id];
+	      } else {
+	        /* istanbul ignore if */
+	        if (false) {
+	          if (type === 'component' && (commonTagRE.test(id) || reservedTagRE.test(id))) {
+	            warn('Do not use built-in or reserved HTML elements as component ' + 'id: ' + id);
+	          }
 	        }
-	      } else {
-	        this.fallback();
+	        if (type === 'component' && isPlainObject(definition)) {
+	          definition.name = id;
+	          definition = Vue.extend(definition);
+	        }
+	        this.options[type + 's'][id] = definition;
+	        return definition;
 	      }
-	    }
-	  },
+	    };
+	  });
 
-	  fallback: function fallback() {
-	    this.compile(extractContent(this.el, true), this.vm);
-	  },
-
-	  compile: function compile(content, context, host) {
-	    if (content && context) {
-	      var scope = host ? host._scope : this._scope;
-	      this.unlink = context.$compile(content, host, scope, this._frag);
-	    }
-	    if (content) {
-	      replace(this.el, content);
-	    } else {
-	      remove(this.el);
-	    }
-	  },
-
-	  unbind: function unbind() {
-	    if (this.unlink) {
-	      this.unlink();
-	    }
-	  }
-	};
-
-	/**
-	 * Extract qualified content nodes from a node list.
-	 *
-	 * @param {NodeList} nodes
-	 * @param {Element} parent
-	 * @param {Boolean} main
-	 * @return {DocumentFragment}
-	 */
-
-	function extractFragment(nodes, parent, main) {
-	  var frag = document.createDocumentFragment();
-	  for (var i = 0, l = nodes.length; i < l; i++) {
-	    var node = nodes[i];
-	    // if this is the main outlet, we want to skip all
-	    // previously selected nodes;
-	    // otherwise, we want to mark the node as selected.
-	    // clone the node so the original raw content remains
-	    // intact. this ensures proper re-compilation in cases
-	    // where the outlet is inside a conditional block
-	    if (main && !node.__v_selected) {
-	      append(node);
-	    } else if (!main && node.parentNode === parent) {
-	      node.__v_selected = true;
-	      append(node);
-	    }
-	  }
-	  return frag;
-
-	  function append(node) {
-	    if (isTemplate(node) && !node.hasAttribute('v-if') && !node.hasAttribute('v-for')) {
-	      node = parseTemplate(node);
-	    }
-	    node = cloneNode(node);
-	    frag.appendChild(node);
-	  }
+	  // expose internal transition API
+	  extend(Vue.transition, transition);
 	}
 
-	var elementDirectives = {
-	  slot: slot,
-	  partial: partial
-	};
+	installGlobalAPI(Vue);
 
-	Vue.version = '1.0.10';
-
-	/**
-	 * Vue and every constructor that extends Vue has an
-	 * associated options object, which can be accessed during
-	 * compilation steps as `this.constructor.options`.
-	 *
-	 * These can be seen as the default options of every
-	 * Vue instance.
-	 */
-
-	Vue.options = {
-	  directives: publicDirectives,
-	  elementDirectives: elementDirectives,
-	  filters: filters,
-	  transitions: {},
-	  components: {},
-	  partials: {},
-	  replace: true
-	};
+	Vue.version = '1.0.20';
 
 	// devtools global hook
-	/* istanbul ignore if */
-	if (false) {
-	  if (inBrowser && window.__VUE_DEVTOOLS_GLOBAL_HOOK__) {
-	    window.__VUE_DEVTOOLS_GLOBAL_HOOK__.emit('init', Vue);
+	/* istanbul ignore next */
+	if (config.devtools) {
+	  if (devtools) {
+	    devtools.emit('init', Vue);
+	  } else if (false) {
+	    console.log('Download the Vue Devtools for a better development experience:\n' + 'https://github.com/vuejs/vue-devtools');
 	  }
 	}
 
 	module.exports = Vue;
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
 /***/ },
+<<<<<<< Updated upstream
 /* 3 */
+=======
+/* 2 */
+>>>>>>> Stashed changes
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
+<<<<<<< Updated upstream
 	var Vue = __webpack_require__(2);
 	var THREE = __webpack_require__(4);
+=======
+	var _keys = __webpack_require__(3);
+
+	var _keys2 = _interopRequireDefault(_keys);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	var Vue = __webpack_require__(1);
+	var THREE = __webpack_require__(15);
+	var chassis = __webpack_require__(16);
+	var wheels = __webpack_require__(17);
+	var position = __webpack_require__(18);
+
+	function toHSLObject(colorString) {
+	  var color = new THREE.Color(colorString);
+	  var hsl = color.getHSL();
+	  return {
+	    h: hsl.h,
+	    s: hsl.s * 100 + '%',
+	    l: hsl.l * 100 + '%'
+	  };
+	}
+>>>>>>> Stashed changes
 
 	window.store = module.exports = new Vue({
 	  data: {
@@ -9398,7 +9956,185 @@
 	 */
 
 /***/ },
+<<<<<<< Updated upstream
 /* 4 */
+=======
+/* 3 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = { "default": __webpack_require__(4), __esModule: true };
+
+/***/ },
+/* 4 */
+/***/ function(module, exports, __webpack_require__) {
+
+	__webpack_require__(5);
+	module.exports = __webpack_require__(11).Object.keys;
+
+/***/ },
+/* 5 */
+/***/ function(module, exports, __webpack_require__) {
+
+	// 19.1.2.14 Object.keys(O)
+	var toObject = __webpack_require__(6);
+
+	__webpack_require__(8)('keys', function($keys){
+	  return function keys(it){
+	    return $keys(toObject(it));
+	  };
+	});
+
+/***/ },
+/* 6 */
+/***/ function(module, exports, __webpack_require__) {
+
+	// 7.1.13 ToObject(argument)
+	var defined = __webpack_require__(7);
+	module.exports = function(it){
+	  return Object(defined(it));
+	};
+
+/***/ },
+/* 7 */
+/***/ function(module, exports) {
+
+	// 7.2.1 RequireObjectCoercible(argument)
+	module.exports = function(it){
+	  if(it == undefined)throw TypeError("Can't call method on  " + it);
+	  return it;
+	};
+
+/***/ },
+/* 8 */
+/***/ function(module, exports, __webpack_require__) {
+
+	// most Object methods by ES6 should accept primitives
+	var $export = __webpack_require__(9)
+	  , core    = __webpack_require__(11)
+	  , fails   = __webpack_require__(14);
+	module.exports = function(KEY, exec){
+	  var fn  = (core.Object || {})[KEY] || Object[KEY]
+	    , exp = {};
+	  exp[KEY] = exec(fn);
+	  $export($export.S + $export.F * fails(function(){ fn(1); }), 'Object', exp);
+	};
+
+/***/ },
+/* 9 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var global    = __webpack_require__(10)
+	  , core      = __webpack_require__(11)
+	  , ctx       = __webpack_require__(12)
+	  , PROTOTYPE = 'prototype';
+
+	var $export = function(type, name, source){
+	  var IS_FORCED = type & $export.F
+	    , IS_GLOBAL = type & $export.G
+	    , IS_STATIC = type & $export.S
+	    , IS_PROTO  = type & $export.P
+	    , IS_BIND   = type & $export.B
+	    , IS_WRAP   = type & $export.W
+	    , exports   = IS_GLOBAL ? core : core[name] || (core[name] = {})
+	    , target    = IS_GLOBAL ? global : IS_STATIC ? global[name] : (global[name] || {})[PROTOTYPE]
+	    , key, own, out;
+	  if(IS_GLOBAL)source = name;
+	  for(key in source){
+	    // contains in native
+	    own = !IS_FORCED && target && key in target;
+	    if(own && key in exports)continue;
+	    // export native or passed
+	    out = own ? target[key] : source[key];
+	    // prevent global pollution for namespaces
+	    exports[key] = IS_GLOBAL && typeof target[key] != 'function' ? source[key]
+	    // bind timers to global for call from export context
+	    : IS_BIND && own ? ctx(out, global)
+	    // wrap global constructors for prevent change them in library
+	    : IS_WRAP && target[key] == out ? (function(C){
+	      var F = function(param){
+	        return this instanceof C ? new C(param) : C(param);
+	      };
+	      F[PROTOTYPE] = C[PROTOTYPE];
+	      return F;
+	    // make static versions for prototype methods
+	    })(out) : IS_PROTO && typeof out == 'function' ? ctx(Function.call, out) : out;
+	    if(IS_PROTO)(exports[PROTOTYPE] || (exports[PROTOTYPE] = {}))[key] = out;
+	  }
+	};
+	// type bitmap
+	$export.F = 1;  // forced
+	$export.G = 2;  // global
+	$export.S = 4;  // static
+	$export.P = 8;  // proto
+	$export.B = 16; // bind
+	$export.W = 32; // wrap
+	module.exports = $export;
+
+/***/ },
+/* 10 */
+/***/ function(module, exports) {
+
+	// https://github.com/zloirock/core-js/issues/86#issuecomment-115759028
+	var global = module.exports = typeof window != 'undefined' && window.Math == Math
+	  ? window : typeof self != 'undefined' && self.Math == Math ? self : Function('return this')();
+	if(typeof __g == 'number')__g = global; // eslint-disable-line no-undef
+
+/***/ },
+/* 11 */
+/***/ function(module, exports) {
+
+	var core = module.exports = {version: '1.2.6'};
+	if(typeof __e == 'number')__e = core; // eslint-disable-line no-undef
+
+/***/ },
+/* 12 */
+/***/ function(module, exports, __webpack_require__) {
+
+	// optional / simple context binding
+	var aFunction = __webpack_require__(13);
+	module.exports = function(fn, that, length){
+	  aFunction(fn);
+	  if(that === undefined)return fn;
+	  switch(length){
+	    case 1: return function(a){
+	      return fn.call(that, a);
+	    };
+	    case 2: return function(a, b){
+	      return fn.call(that, a, b);
+	    };
+	    case 3: return function(a, b, c){
+	      return fn.call(that, a, b, c);
+	    };
+	  }
+	  return function(/* ...args */){
+	    return fn.apply(that, arguments);
+	  };
+	};
+
+/***/ },
+/* 13 */
+/***/ function(module, exports) {
+
+	module.exports = function(it){
+	  if(typeof it != 'function')throw TypeError(it + ' is not a function!');
+	  return it;
+	};
+
+/***/ },
+/* 14 */
+/***/ function(module, exports) {
+
+	module.exports = function(exec){
+	  try {
+	    return !!exec();
+	  } catch(e){
+	    return true;
+	  }
+	};
+
+/***/ },
+/* 15 */
+>>>>>>> Stashed changes
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;var self = self || {};// File:src/Three.js
@@ -20641,6 +21377,10 @@
 				if ( hasFaceVertexUv === true ) {
 
 					var vertexUvs = faceVertexUvs[ 0 ][ i ];
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 					if ( vertexUvs !== undefined ) {
 
 						this.uvs.push( vertexUvs[ 0 ], vertexUvs[ 1 ], vertexUvs[ 2 ] );
@@ -32015,6 +32755,10 @@
 				}
 
 			} else if ( geometry instanceof THREE.Geometry ) {
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 				var fvA, fvB, fvC;
 				var isFaceMaterial = material instanceof THREE.MultiMaterial;
 				var materials = isFaceMaterial === true ? material.materials : null;
@@ -32025,6 +32769,10 @@
 				if ( faceVertexUvs.length > 0 ) uvs = faceVertexUvs;
 
 				for ( var f = 0, fl = faces.length; f < fl; f ++ ) {
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 					var face = faces[ f ];
 					var faceMaterial = isFaceMaterial === true ? materials[ face.materialIndex ] : material;
 
@@ -32072,6 +32820,10 @@
 					if ( intersection ) {
 
 						if ( uvs ) {
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 							var uvs_f = uvs[ f ];
 							uvA.copy( uvs_f[ 0 ] );
 							uvB.copy( uvs_f[ 1 ] );
@@ -32164,7 +32916,11 @@
 			//       32x32 pixel texture max  256 bones * 4 pixels = (32 * 32)
 			//       64x64 pixel texture max 1024 bones * 4 pixels = (64 * 64)
 
+<<<<<<< Updated upstream
 
+=======
+			
+>>>>>>> Stashed changes
 			var size = Math.sqrt( this.bones.length * 4 ); // 4 pixels needed for 1 matrix
 			size = THREE.Math.nextPowerOfTwo( Math.ceil( size ) );
 			size = Math.max( size, 4 );
@@ -41271,7 +42027,11 @@
 		}
 
 		function painterSortStable ( a, b ) {
+<<<<<<< Updated upstream
 
+=======
+			
+>>>>>>> Stashed changes
 			if ( a.renderOrder !== b.renderOrder ) {
 
 				return a.renderOrder - b.renderOrder;
@@ -44491,7 +45251,11 @@
 
 		var b3 = THREE.ShapeUtils.b3;
 
+<<<<<<< Updated upstream
 		return new THREE.Vector2(
+=======
+		return new THREE.Vector2( 
+>>>>>>> Stashed changes
 			b3( t, this.v0.x, this.v1.x, this.v2.x, this.v3.x ),
 			b3( t, this.v0.y, this.v1.y, this.v2.y, this.v3.y )
 		);
@@ -44502,7 +45266,11 @@
 
 		var tangentCubicBezier = THREE.CurveUtils.tangentCubicBezier;
 
+<<<<<<< Updated upstream
 		return new THREE.Vector2(
+=======
+		return new THREE.Vector2( 
+>>>>>>> Stashed changes
 			tangentCubicBezier( t, this.v0.x, this.v1.x, this.v2.x, this.v3.x ),
 			tangentCubicBezier( t, this.v0.y, this.v1.y, this.v2.y, this.v3.y )
 		).normalize();
@@ -44564,7 +45332,11 @@
 		this.aEndAngle = aEndAngle;
 
 		this.aClockwise = aClockwise;
+<<<<<<< Updated upstream
 
+=======
+		
+>>>>>>> Stashed changes
 		this.aRotation = aRotation || 0;
 
 	};
@@ -44590,7 +45362,11 @@
 			angle = this.aStartAngle + t * deltaAngle;
 
 		}
+<<<<<<< Updated upstream
 
+=======
+		
+>>>>>>> Stashed changes
 		var x = this.aX + this.xRadius * Math.cos( angle );
 		var y = this.aY + this.yRadius * Math.sin( angle );
 
@@ -44673,7 +45449,11 @@
 
 		function ( t ) {
 
+<<<<<<< Updated upstream
 			var b2 = THREE.ShapeUtils.b2;
+=======
+			var b2 = THREE.ShapeUtils.b2;		
+>>>>>>> Stashed changes
 
 			return new THREE.Vector3(
 				b2( t, this.v0.x, this.v1.x, this.v2.x ),
@@ -48613,7 +49393,11 @@
 			if ( headWidth === undefined ) headWidth = 0.2 * headLength;
 
 			this.position.copy( origin );
+<<<<<<< Updated upstream
 
+=======
+			
+>>>>>>> Stashed changes
 			this.line = new THREE.Line( lineGeometry, new THREE.LineBasicMaterial( { color: color } ) );
 			this.line.matrixAutoUpdate = false;
 			this.add( this.line );
@@ -49103,6 +49887,7 @@
 	/**
 	 * @author mrdoob / http://mrdoob.com/
 	 * @author WestLangley / http://github.com/WestLangley
+<<<<<<< Updated upstream
 	*/
 
 	THREE.FaceNormalsHelper = function ( object, size, hex, linewidth ) {
@@ -49569,6 +50354,754 @@
 	*/
 
 	THREE.VertexNormalsHelper = function ( object, size, hex, linewidth ) {
+=======
+	*/
+
+	THREE.FaceNormalsHelper = function ( object, size, hex, linewidth ) {
+
+		// FaceNormalsHelper only supports THREE.Geometry
+>>>>>>> Stashed changes
+
+		this.object = object;
+
+		this.size = ( size !== undefined ) ? size : 1;
+
+<<<<<<< Updated upstream
+		var color = ( hex !== undefined ) ? hex : 0xff0000;
+=======
+		var color = ( hex !== undefined ) ? hex : 0xffff00;
+>>>>>>> Stashed changes
+
+		var width = ( linewidth !== undefined ) ? linewidth : 1;
+
+		//
+
+		var nNormals = 0;
+
+		var objGeometry = this.object.geometry;
+
+		if ( objGeometry instanceof THREE.Geometry ) {
+
+<<<<<<< Updated upstream
+			nNormals = objGeometry.faces.length * 3;
+
+		} else if ( objGeometry instanceof THREE.BufferGeometry ) {
+
+			nNormals = objGeometry.attributes.normal.count
+=======
+			nNormals = objGeometry.faces.length;
+
+		} else {
+
+			console.warn( 'THREE.FaceNormalsHelper: only THREE.Geometry is supported. Use THREE.VertexNormalsHelper, instead.' );
+>>>>>>> Stashed changes
+
+		}
+
+		//
+
+		var geometry = new THREE.BufferGeometry();
+
+		var positions = new THREE.Float32Attribute( nNormals * 2 * 3, 3 );
+
+		geometry.addAttribute( 'position', positions );
+
+		THREE.LineSegments.call( this, geometry, new THREE.LineBasicMaterial( { color: color, linewidth: width } ) );
+
+		//
+
+		this.matrixAutoUpdate = false;
+<<<<<<< Updated upstream
+
+=======
+>>>>>>> Stashed changes
+		this.update();
+
+	};
+
+<<<<<<< Updated upstream
+	THREE.VertexNormalsHelper.prototype = Object.create( THREE.LineSegments.prototype );
+	THREE.VertexNormalsHelper.prototype.constructor = THREE.VertexNormalsHelper;
+
+	THREE.VertexNormalsHelper.prototype.update = ( function () {
+=======
+	THREE.FaceNormalsHelper.prototype = Object.create( THREE.LineSegments.prototype );
+	THREE.FaceNormalsHelper.prototype.constructor = THREE.FaceNormalsHelper;
+
+	THREE.FaceNormalsHelper.prototype.update = ( function () {
+>>>>>>> Stashed changes
+
+		var v1 = new THREE.Vector3();
+		var v2 = new THREE.Vector3();
+		var normalMatrix = new THREE.Matrix3();
+
+		return function update() {
+
+<<<<<<< Updated upstream
+			var keys = [ 'a', 'b', 'c' ];
+
+=======
+>>>>>>> Stashed changes
+			this.object.updateMatrixWorld( true );
+
+			normalMatrix.getNormalMatrix( this.object.matrixWorld );
+
+			var matrixWorld = this.object.matrixWorld;
+
+			var position = this.geometry.attributes.position;
+
+			//
+
+			var objGeometry = this.object.geometry;
+
+<<<<<<< Updated upstream
+			if ( objGeometry instanceof THREE.Geometry ) {
+
+				var vertices = objGeometry.vertices;
+
+				var faces = objGeometry.faces;
+
+				var idx = 0;
+
+				for ( var i = 0, l = faces.length; i < l; i ++ ) {
+
+					var face = faces[ i ];
+
+					for ( var j = 0, jl = face.vertexNormals.length; j < jl; j ++ ) {
+
+						var vertex = vertices[ face[ keys[ j ] ] ];
+
+						var normal = face.vertexNormals[ j ];
+
+						v1.copy( vertex ).applyMatrix4( matrixWorld );
+
+						v2.copy( normal ).applyMatrix3( normalMatrix ).normalize().multiplyScalar( this.size ).add( v1 );
+
+						position.setXYZ( idx, v1.x, v1.y, v1.z );
+
+						idx = idx + 1;
+
+						position.setXYZ( idx, v2.x, v2.y, v2.z );
+
+						idx = idx + 1;
+
+					}
+
+				}
+
+			} else if ( objGeometry instanceof THREE.BufferGeometry ) {
+
+				var objPos = objGeometry.attributes.position;
+
+				var objNorm = objGeometry.attributes.normal;
+
+				var idx = 0;
+
+				// for simplicity, ignore index and drawcalls, and render every normal
+
+				for ( var j = 0, jl = objPos.count; j < jl; j ++ ) {
+
+					v1.set( objPos.getX( j ), objPos.getY( j ), objPos.getZ( j ) ).applyMatrix4( matrixWorld );
+
+					v2.set( objNorm.getX( j ), objNorm.getY( j ), objNorm.getZ( j ) );
+
+					v2.applyMatrix3( normalMatrix ).normalize().multiplyScalar( this.size ).add( v1 );
+
+					position.setXYZ( idx, v1.x, v1.y, v1.z );
+
+					idx = idx + 1;
+
+					position.setXYZ( idx, v2.x, v2.y, v2.z );
+
+					idx = idx + 1;
+
+				}
+
+			}
+
+			position.needsUpdate = true;
+
+			return this;
+
+		}
+
+	}() );
+
+	// File:src/extras/helpers/WireframeHelper.js
+
+	/**
+	 * @author mrdoob / http://mrdoob.com/
+	 */
+
+	THREE.WireframeHelper = function ( object, hex ) {
+
+		var color = ( hex !== undefined ) ? hex : 0xffffff;
+
+		THREE.LineSegments.call( this, new THREE.WireframeGeometry( object.geometry ), new THREE.LineBasicMaterial( { color: color } ) );
+
+		this.matrix = object.matrixWorld;
+		this.matrixAutoUpdate = false;
+
+	};
+
+	THREE.WireframeHelper.prototype = Object.create( THREE.LineSegments.prototype );
+	THREE.WireframeHelper.prototype.constructor = THREE.WireframeHelper;
+
+	// File:src/extras/objects/ImmediateRenderObject.js
+
+	/**
+	 * @author alteredq / http://alteredqualia.com/
+	 */
+
+	THREE.ImmediateRenderObject = function ( material ) {
+
+		THREE.Object3D.call( this );
+
+		this.material = material;
+		this.render = function ( renderCallback ) {};
+
+	};
+
+	THREE.ImmediateRenderObject.prototype = Object.create( THREE.Object3D.prototype );
+	THREE.ImmediateRenderObject.prototype.constructor = THREE.ImmediateRenderObject;
+
+	// File:src/extras/objects/MorphBlendMesh.js
+
+	/**
+	 * @author alteredq / http://alteredqualia.com/
+	 */
+
+	THREE.MorphBlendMesh = function( geometry, material ) {
+
+		THREE.Mesh.call( this, geometry, material );
+
+		this.animationsMap = {};
+		this.animationsList = [];
+
+		// prepare default animation
+		// (all frames played together in 1 second)
+
+		var numFrames = this.geometry.morphTargets.length;
+
+		var name = "__default";
+
+		var startFrame = 0;
+		var endFrame = numFrames - 1;
+
+		var fps = numFrames / 1;
+
+		this.createAnimation( name, startFrame, endFrame, fps );
+		this.setAnimationWeight( name, 1 );
+
+	};
+
+	THREE.MorphBlendMesh.prototype = Object.create( THREE.Mesh.prototype );
+	THREE.MorphBlendMesh.prototype.constructor = THREE.MorphBlendMesh;
+
+	THREE.MorphBlendMesh.prototype.createAnimation = function ( name, start, end, fps ) {
+
+		var animation = {
+
+			start: start,
+			end: end,
+
+			length: end - start + 1,
+
+			fps: fps,
+			duration: ( end - start ) / fps,
+
+			lastFrame: 0,
+			currentFrame: 0,
+
+			active: false,
+
+			time: 0,
+			direction: 1,
+			weight: 1,
+
+			directionBackwards: false,
+			mirroredLoop: false
+
+		};
+
+		this.animationsMap[ name ] = animation;
+		this.animationsList.push( animation );
+
+	};
+
+	THREE.MorphBlendMesh.prototype.autoCreateAnimations = function ( fps ) {
+
+		var pattern = /([a-z]+)_?(\d+)/i;
+
+		var firstAnimation, frameRanges = {};
+
+		var geometry = this.geometry;
+
+		for ( var i = 0, il = geometry.morphTargets.length; i < il; i ++ ) {
+
+			var morph = geometry.morphTargets[ i ];
+			var chunks = morph.name.match( pattern );
+
+			if ( chunks && chunks.length > 1 ) {
+
+				var name = chunks[ 1 ];
+
+				if ( ! frameRanges[ name ] ) frameRanges[ name ] = { start: Infinity, end: - Infinity };
+
+				var range = frameRanges[ name ];
+
+				if ( i < range.start ) range.start = i;
+				if ( i > range.end ) range.end = i;
+
+				if ( ! firstAnimation ) firstAnimation = name;
+=======
+			var vertices = objGeometry.vertices;
+
+			var faces = objGeometry.faces;
+
+			var idx = 0;
+
+			for ( var i = 0, l = faces.length; i < l; i ++ ) {
+
+				var face = faces[ i ];
+
+				var normal = face.normal;
+
+				v1.copy( vertices[ face.a ] )
+					.add( vertices[ face.b ] )
+					.add( vertices[ face.c ] )
+					.divideScalar( 3 )
+					.applyMatrix4( matrixWorld );
+
+				v2.copy( normal ).applyMatrix3( normalMatrix ).normalize().multiplyScalar( this.size ).add( v1 );
+
+				position.setXYZ( idx, v1.x, v1.y, v1.z );
+
+				idx = idx + 1;
+
+				position.setXYZ( idx, v2.x, v2.y, v2.z );
+
+				idx = idx + 1;
+
+			}
+
+			position.needsUpdate = true;
+
+			return this;
+
+		}
+
+	}() );
+
+	// File:src/extras/helpers/GridHelper.js
+
+	/**
+	 * @author mrdoob / http://mrdoob.com/
+	 */
+
+	THREE.GridHelper = function ( size, step ) {
+
+		var geometry = new THREE.Geometry();
+		var material = new THREE.LineBasicMaterial( { vertexColors: THREE.VertexColors } );
+
+		this.color1 = new THREE.Color( 0x444444 );
+		this.color2 = new THREE.Color( 0x888888 );
+
+		for ( var i = - size; i <= size; i += step ) {
+
+			geometry.vertices.push(
+				new THREE.Vector3( - size, 0, i ), new THREE.Vector3( size, 0, i ),
+				new THREE.Vector3( i, 0, - size ), new THREE.Vector3( i, 0, size )
+			);
+
+			var color = i === 0 ? this.color1 : this.color2;
+
+			geometry.colors.push( color, color, color, color );
+
+		}
+
+		THREE.LineSegments.call( this, geometry, material );
+
+	};
+
+	THREE.GridHelper.prototype = Object.create( THREE.LineSegments.prototype );
+	THREE.GridHelper.prototype.constructor = THREE.GridHelper;
+
+	THREE.GridHelper.prototype.setColors = function( colorCenterLine, colorGrid ) {
+
+		this.color1.set( colorCenterLine );
+		this.color2.set( colorGrid );
+
+		this.geometry.colorsNeedUpdate = true;
+
+	};
+
+	// File:src/extras/helpers/HemisphereLightHelper.js
+
+	/**
+	 * @author alteredq / http://alteredqualia.com/
+	 * @author mrdoob / http://mrdoob.com/
+	 */
+
+	THREE.HemisphereLightHelper = function ( light, sphereSize ) {
+
+		THREE.Object3D.call( this );
+
+		this.light = light;
+		this.light.updateMatrixWorld();
+
+		this.matrix = light.matrixWorld;
+		this.matrixAutoUpdate = false;
+
+		this.colors = [ new THREE.Color(), new THREE.Color() ];
+
+		var geometry = new THREE.SphereGeometry( sphereSize, 4, 2 );
+		geometry.rotateX( - Math.PI / 2 );
+
+		for ( var i = 0, il = 8; i < il; i ++ ) {
+
+			geometry.faces[ i ].color = this.colors[ i < 4 ? 0 : 1 ];
+
+		}
+
+		var material = new THREE.MeshBasicMaterial( { vertexColors: THREE.FaceColors, wireframe: true } );
+
+		this.lightSphere = new THREE.Mesh( geometry, material );
+		this.add( this.lightSphere );
+
+		this.update();
+
+	};
+
+	THREE.HemisphereLightHelper.prototype = Object.create( THREE.Object3D.prototype );
+	THREE.HemisphereLightHelper.prototype.constructor = THREE.HemisphereLightHelper;
+
+	THREE.HemisphereLightHelper.prototype.dispose = function () {
+
+		this.lightSphere.geometry.dispose();
+		this.lightSphere.material.dispose();
+
+	};
+
+	THREE.HemisphereLightHelper.prototype.update = function () {
+
+		var vector = new THREE.Vector3();
+
+		return function () {
+
+			this.colors[ 0 ].copy( this.light.color ).multiplyScalar( this.light.intensity );
+			this.colors[ 1 ].copy( this.light.groundColor ).multiplyScalar( this.light.intensity );
+
+			this.lightSphere.lookAt( vector.setFromMatrixPosition( this.light.matrixWorld ).negate() );
+			this.lightSphere.geometry.colorsNeedUpdate = true;
+
+		}
+
+	}();
+
+	// File:src/extras/helpers/PointLightHelper.js
+
+	/**
+	 * @author alteredq / http://alteredqualia.com/
+	 * @author mrdoob / http://mrdoob.com/
+	 */
+
+	THREE.PointLightHelper = function ( light, sphereSize ) {
+
+		this.light = light;
+		this.light.updateMatrixWorld();
+
+		var geometry = new THREE.SphereGeometry( sphereSize, 4, 2 );
+		var material = new THREE.MeshBasicMaterial( { wireframe: true, fog: false } );
+		material.color.copy( this.light.color ).multiplyScalar( this.light.intensity );
+
+		THREE.Mesh.call( this, geometry, material );
+
+		this.matrix = this.light.matrixWorld;
+		this.matrixAutoUpdate = false;
+
+		/*
+		var distanceGeometry = new THREE.IcosahedronGeometry( 1, 2 );
+		var distanceMaterial = new THREE.MeshBasicMaterial( { color: hexColor, fog: false, wireframe: true, opacity: 0.1, transparent: true } );
+
+		this.lightSphere = new THREE.Mesh( bulbGeometry, bulbMaterial );
+		this.lightDistance = new THREE.Mesh( distanceGeometry, distanceMaterial );
+
+		var d = light.distance;
+
+		if ( d === 0.0 ) {
+
+			this.lightDistance.visible = false;
+
+		} else {
+
+			this.lightDistance.scale.set( d, d, d );
+
+		}
+
+		this.add( this.lightDistance );
+		*/
+
+	};
+
+	THREE.PointLightHelper.prototype = Object.create( THREE.Mesh.prototype );
+	THREE.PointLightHelper.prototype.constructor = THREE.PointLightHelper;
+
+	THREE.PointLightHelper.prototype.dispose = function () {
+
+		this.geometry.dispose();
+		this.material.dispose();
+
+	};
+
+	THREE.PointLightHelper.prototype.update = function () {
+
+		this.material.color.copy( this.light.color ).multiplyScalar( this.light.intensity );
+
+		/*
+		var d = this.light.distance;
+
+		if ( d === 0.0 ) {
+
+			this.lightDistance.visible = false;
+
+		} else {
+
+			this.lightDistance.visible = true;
+			this.lightDistance.scale.set( d, d, d );
+
+		}
+		*/
+
+	};
+
+	// File:src/extras/helpers/SkeletonHelper.js
+
+	/**
+	 * @author Sean Griffin / http://twitter.com/sgrif
+	 * @author Michael Guerrero / http://realitymeltdown.com
+	 * @author mrdoob / http://mrdoob.com/
+	 * @author ikerr / http://verold.com
+	 */
+
+	THREE.SkeletonHelper = function ( object ) {
+
+		this.bones = this.getBoneList( object );
+
+		var geometry = new THREE.Geometry();
+
+		for ( var i = 0; i < this.bones.length; i ++ ) {
+
+			var bone = this.bones[ i ];
+
+			if ( bone.parent instanceof THREE.Bone ) {
+
+				geometry.vertices.push( new THREE.Vector3() );
+				geometry.vertices.push( new THREE.Vector3() );
+				geometry.colors.push( new THREE.Color( 0, 0, 1 ) );
+				geometry.colors.push( new THREE.Color( 0, 1, 0 ) );
+
+			}
+
+		}
+
+		geometry.dynamic = true;
+
+		var material = new THREE.LineBasicMaterial( { vertexColors: THREE.VertexColors, depthTest: false, depthWrite: false, transparent: true } );
+
+		THREE.LineSegments.call( this, geometry, material );
+
+		this.root = object;
+
+		this.matrix = object.matrixWorld;
+		this.matrixAutoUpdate = false;
+
+		this.update();
+
+	};
+
+
+	THREE.SkeletonHelper.prototype = Object.create( THREE.LineSegments.prototype );
+	THREE.SkeletonHelper.prototype.constructor = THREE.SkeletonHelper;
+
+	THREE.SkeletonHelper.prototype.getBoneList = function( object ) {
+
+		var boneList = [];
+
+		if ( object instanceof THREE.Bone ) {
+
+			boneList.push( object );
+
+		}
+
+		for ( var i = 0; i < object.children.length; i ++ ) {
+
+			boneList.push.apply( boneList, this.getBoneList( object.children[ i ] ) );
+
+		}
+
+		return boneList;
+
+	};
+
+	THREE.SkeletonHelper.prototype.update = function () {
+
+		var geometry = this.geometry;
+
+		var matrixWorldInv = new THREE.Matrix4().getInverse( this.root.matrixWorld );
+
+		var boneMatrix = new THREE.Matrix4();
+
+		var j = 0;
+
+		for ( var i = 0; i < this.bones.length; i ++ ) {
+
+			var bone = this.bones[ i ];
+
+			if ( bone.parent instanceof THREE.Bone ) {
+
+				boneMatrix.multiplyMatrices( matrixWorldInv, bone.matrixWorld );
+				geometry.vertices[ j ].setFromMatrixPosition( boneMatrix );
+
+				boneMatrix.multiplyMatrices( matrixWorldInv, bone.parent.matrixWorld );
+				geometry.vertices[ j + 1 ].setFromMatrixPosition( boneMatrix );
+
+				j += 2;
+>>>>>>> Stashed changes
+
+			}
+
+		}
+
+<<<<<<< Updated upstream
+		for ( var name in frameRanges ) {
+
+			var range = frameRanges[ name ];
+			this.createAnimation( name, range.start, range.end, fps );
+
+		}
+
+		this.firstAnimation = firstAnimation;
+
+	};
+
+	THREE.MorphBlendMesh.prototype.setAnimationDirectionForward = function ( name ) {
+
+		var animation = this.animationsMap[ name ];
+
+		if ( animation ) {
+
+			animation.direction = 1;
+			animation.directionBackwards = false;
+
+		}
+
+	};
+
+	THREE.MorphBlendMesh.prototype.setAnimationDirectionBackward = function ( name ) {
+
+		var animation = this.animationsMap[ name ];
+
+		if ( animation ) {
+
+			animation.direction = - 1;
+			animation.directionBackwards = true;
+
+		}
+
+	};
+
+	THREE.MorphBlendMesh.prototype.setAnimationFPS = function ( name, fps ) {
+
+		var animation = this.animationsMap[ name ];
+
+		if ( animation ) {
+
+			animation.fps = fps;
+			animation.duration = ( animation.end - animation.start ) / animation.fps;
+
+		}
+
+=======
+		geometry.verticesNeedUpdate = true;
+
+		geometry.computeBoundingSphere();
+
+	};
+
+	// File:src/extras/helpers/SpotLightHelper.js
+
+	/**
+	 * @author alteredq / http://alteredqualia.com/
+	 * @author mrdoob / http://mrdoob.com/
+	 * @author WestLangley / http://github.com/WestLangley
+	*/
+
+	THREE.SpotLightHelper = function ( light ) {
+
+		THREE.Object3D.call( this );
+
+		this.light = light;
+		this.light.updateMatrixWorld();
+
+		this.matrix = light.matrixWorld;
+		this.matrixAutoUpdate = false;
+
+		var geometry = new THREE.CylinderGeometry( 0, 1, 1, 8, 1, true );
+
+		geometry.translate( 0, - 0.5, 0 );
+		geometry.rotateX( - Math.PI / 2 );
+
+		var material = new THREE.MeshBasicMaterial( { wireframe: true, fog: false } );
+
+		this.cone = new THREE.Mesh( geometry, material );
+		this.add( this.cone );
+
+		this.update();
+
+	};
+
+	THREE.SpotLightHelper.prototype = Object.create( THREE.Object3D.prototype );
+	THREE.SpotLightHelper.prototype.constructor = THREE.SpotLightHelper;
+
+	THREE.SpotLightHelper.prototype.dispose = function () {
+
+		this.cone.geometry.dispose();
+		this.cone.material.dispose();
+
+	};
+
+	THREE.SpotLightHelper.prototype.update = function () {
+
+		var vector = new THREE.Vector3();
+		var vector2 = new THREE.Vector3();
+
+		return function () {
+
+			var coneLength = this.light.distance ? this.light.distance : 10000;
+			var coneWidth = coneLength * Math.tan( this.light.angle );
+
+			this.cone.scale.set( coneWidth, coneWidth, coneLength );
+
+			vector.setFromMatrixPosition( this.light.matrixWorld );
+			vector2.setFromMatrixPosition( this.light.target.matrixWorld );
+
+			this.cone.lookAt( vector2.sub( vector ) );
+
+			this.cone.material.color.copy( this.light.color ).multiplyScalar( this.light.intensity );
+
+		};
+
+	}();
+
+	// File:src/extras/helpers/VertexNormalsHelper.js
+
+	/**
+	 * @author mrdoob / http://mrdoob.com/
+	 * @author WestLangley / http://github.com/WestLangley
+	*/
+
+	THREE.VertexNormalsHelper = function ( object, size, hex, linewidth ) {
 
 		this.object = object;
 
@@ -49889,6 +51422,7 @@
 
 		}
 
+>>>>>>> Stashed changes
 	};
 
 	THREE.MorphBlendMesh.prototype.setAnimationDuration = function ( name, duration ) {
@@ -50081,6 +51615,7 @@
 
 
 /***/ },
+<<<<<<< Updated upstream
 /* 5 */
 /***/ function(module, exports, __webpack_require__) {
 
@@ -51641,10 +53176,12208 @@
 
 /***/ },
 /* 29 */
+=======
+/* 16 */
+/***/ function(module, exports) {
+
+	module.exports = {
+		"a3": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a3/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a3/body-area.json",
+				"previews": [
+					"a3/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"a3/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a3/fbumper.json",
+					"a3/fbumper-rs.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a3/fbumper-area.json",
+				"previews": [
+					"a3/fbumper-preview.png",
+					"a3/fbumper-rs-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"a3/glass.json"
+				],
+				"material": "glass",
+				"area": "a3/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a3/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a3/hood-area.json",
+				"previews": [
+					"a3/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"a3/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"a3/lens.json"
+				],
+				"material": "glass",
+				"area": "a3/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a3/rbumper.json",
+					"a3/rbumper-rs.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a3/rbumper-area.json",
+				"previews": [
+					"a3/rbumper-preview.png",
+					"a3/rbumper-rs-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a3/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a3/reflector-area.json",
+				"previews": [
+					"a3/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a3/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a3/roof-area.json",
+				"previews": [
+					"a3/roof-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a3/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a3/trunk-area.json",
+				"previews": [
+					"a3/trunk-preview.png"
+				]
+			}
+		},
+		"a4": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a4/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a4/body-area.json",
+				"previews": [
+					"a4/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"a4/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a4/fbumper.json",
+					"a4/fbumper-rieger.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a4/fbumper-area.json",
+				"previews": [
+					"a4/fbumper-preview.png",
+					"a4/fbumper-rieger-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"a4/glass.json"
+				],
+				"material": "glass",
+				"area": "a4/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a4/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a4/hood-area.json",
+				"previews": [
+					"a4/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"a4/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"a4/lens.json"
+				],
+				"material": "glass",
+				"area": "a4/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a4/rbumper.json",
+					"a4/rbumper-rieger.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a4/rbumper-area.json",
+				"previews": [
+					"a4/rbumper-preview.png",
+					"a4/rbumper-rieger-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a4/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a4/reflector-area.json",
+				"previews": [
+					"a4/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a4/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a4/roof-area.json",
+				"previews": [
+					"a4/roof-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a4/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a4/trunk-area.json",
+				"previews": [
+					"a4/trunk-preview.png"
+				]
+			}
+		},
+		"a5": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a5/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a5/body-area.json",
+				"previews": [
+					"a5/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"a5/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a5/fbumper.json",
+					"a5/fbumper-rs.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a5/fbumper-area.json",
+				"previews": [
+					"a5/fbumper-preview.png",
+					"a5/fbumper-rs-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"a5/glass.json"
+				],
+				"material": "glass",
+				"area": "a5/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a5/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a5/hood-area.json",
+				"previews": [
+					"a5/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"a5/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"a5/lens.json"
+				],
+				"material": "glass",
+				"area": "a5/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a5/rbumper.json",
+					"a5/rbumper-rs.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a5/rbumper-area.json",
+				"previews": [
+					"a5/rbumper-preview.png",
+					"a5/rbumper-rs-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a5/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a5/reflector-area.json",
+				"previews": [
+					"a5/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a5/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a5/roof-area.json",
+				"previews": [
+					"a5/roof-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"a5/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "a5/trunk-area.json",
+				"previews": [
+					"a5/trunk-preview.png"
+				]
+			}
+		},
+		"atenza": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"atenza/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "atenza/body-area.json",
+				"previews": [
+					"atenza/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"atenza/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"atenza/fbumper.json",
+					"atenza/fbumper-sema.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "atenza/fbumper-area.json",
+				"previews": [
+					"atenza/fbumper-preview.png",
+					"atenza/fbumper-sema-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"atenza/glass.json"
+				],
+				"material": "glass",
+				"area": "atenza/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"atenza/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "atenza/hood-area.json",
+				"previews": [
+					"atenza/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"atenza/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"atenza/lens.json"
+				],
+				"material": "glass",
+				"area": "atenza/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"atenza/rbumper.json",
+					"atenza/rbumper-sema.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "atenza/rbumper-area.json",
+				"previews": [
+					"atenza/rbumper-preview.png",
+					"atenza/rbumper-sema-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"atenza/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "atenza/reflector-area.json",
+				"previews": [
+					"atenza/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"atenza/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "atenza/roof-area.json",
+				"previews": [
+					"atenza/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"atenza/sideskirt.json",
+					"atenza/sideskirt-sema.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "atenza/sideskirt-area.json",
+				"previews": [
+					"atenza/sideskirt-preview.png",
+					"atenza/sideskirt-sema-preview.png"
+				]
+			},
+			"spoiler": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"atenza/spoiler.json",
+					"atenza/spoiler-sema.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "atenza/spoiler-area.json",
+				"previews": [
+					"atenza/spoiler-preview.png",
+					"atenza/spoiler-sema-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"atenza/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "atenza/trunk-area.json",
+				"previews": [
+					"atenza/trunk-preview.png"
+				]
+			}
+		},
+		"ats": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ats/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ats/body-area.json",
+				"previews": [
+					"ats/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"ats/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ats/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ats/fbumper-area.json",
+				"previews": [
+					"ats/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"ats/glass.json"
+				],
+				"material": "glass",
+				"area": "ats/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ats/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ats/hood-area.json",
+				"previews": [
+					"ats/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"ats/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"ats/lens.json"
+				],
+				"material": "glass",
+				"area": "ats/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ats/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ats/rbumper-area.json",
+				"previews": [
+					"ats/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ats/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ats/reflector-area.json",
+				"previews": [
+					"ats/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ats/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ats/roof-area.json",
+				"previews": [
+					"ats/roof-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ats/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ats/trunk-area.json",
+				"previews": [
+					"ats/trunk-preview.png"
+				]
+			}
+		},
+		"beetle": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"beetle/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "beetle/body-area.json",
+				"previews": [
+					"beetle/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"beetle/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"beetle/fbumper.json",
+					"beetle/fbumper-r.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "beetle/fbumper-area.json",
+				"previews": [
+					"beetle/fbumper-preview.png",
+					"beetle/fbumper-r-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"beetle/glass.json"
+				],
+				"material": "glass",
+				"area": "beetle/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"beetle/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "beetle/hood-area.json",
+				"previews": [
+					"beetle/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"beetle/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"beetle/lens.json"
+				],
+				"material": "glass",
+				"area": "beetle/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"beetle/rbumper.json",
+					"beetle/rbumper-r.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "beetle/rbumper-area.json",
+				"previews": [
+					"beetle/rbumper-preview.png",
+					"beetle/rbumper-r-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"beetle/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "beetle/reflector-area.json",
+				"previews": [
+					"beetle/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"beetle/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "beetle/roof-area.json",
+				"previews": [
+					"beetle/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"beetle/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "beetle/sideskirt-area.json",
+				"previews": [
+					"beetle/sideskirt-preview.png"
+				]
+			},
+			"spoiler": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"beetle/spoiler.json",
+					"beetle/spoiler-r.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "beetle/spoiler-area.json",
+				"previews": [
+					"beetle/spoiler-preview.png",
+					"beetle/spoiler-r-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"beetle/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "beetle/trunk-area.json",
+				"previews": [
+					"beetle/trunk-preview.png"
+				]
+			}
+		},
+		"bmw3": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw3/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw3/body-area.json",
+				"previews": [
+					"bmw3/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"bmw3/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw3/fbumper.json",
+					"bmw3/fbumper-m.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw3/fbumper-area.json",
+				"previews": [
+					"bmw3/fbumper-preview.png",
+					"bmw3/fbumper-m-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"bmw3/glass.json"
+				],
+				"material": "glass",
+				"area": "bmw3/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw3/hood.json",
+					"bmw3/hood-m.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw3/hood-area.json",
+				"previews": [
+					"bmw3/hood-preview.png",
+					"bmw3/hood-m-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"bmw3/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"bmw3/lens.json"
+				],
+				"material": "glass",
+				"area": "bmw3/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw3/rbumper.json",
+					"bmw3/rbumper-m.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw3/rbumper-area.json",
+				"previews": [
+					"bmw3/rbumper-preview.png",
+					"bmw3/rbumper-m-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw3/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw3/reflector-area.json",
+				"previews": [
+					"bmw3/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw3/roof.json",
+					"bmw3/roof-m.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw3/roof-area.json",
+				"previews": [
+					"bmw3/roof-preview.png",
+					"bmw3/roof-m-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw3/sideskirt.json",
+					"bmw3/sideskirt-m.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw3/sideskirt-area.json",
+				"previews": [
+					"bmw3/sideskirt-preview.png",
+					"bmw3/sideskirt-m-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw3/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw3/trunk-area.json",
+				"previews": [
+					"bmw3/trunk-preview.png"
+				]
+			}
+		},
+		"bmw5": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw5/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw5/body-area.json",
+				"previews": [
+					"bmw5/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"bmw5/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw5/fbumper.json",
+					"bmw5/fbumper-m.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw5/fbumper-area.json",
+				"previews": [
+					"bmw5/fbumper-preview.png",
+					"bmw5/fbumper-m-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"bmw5/glass.json"
+				],
+				"material": "glass",
+				"area": "bmw5/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw5/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw5/hood-area.json",
+				"previews": [
+					"bmw5/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"bmw5/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"bmw5/lens.json"
+				],
+				"material": "glass",
+				"area": "bmw5/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw5/rbumper.json",
+					"bmw5/rbumper-m.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw5/rbumper-area.json",
+				"previews": [
+					"bmw5/rbumper-preview.png",
+					"bmw5/rbumper-m-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw5/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw5/reflector-area.json",
+				"previews": [
+					"bmw5/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw5/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw5/roof-area.json",
+				"previews": [
+					"bmw5/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw5/sideskirt.json",
+					"bmw5/sideskirt-m.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw5/sideskirt-area.json",
+				"previews": [
+					"bmw5/sideskirt-preview.png",
+					"bmw5/sideskirt-m-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"bmw5/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "bmw5/trunk-area.json",
+				"previews": [
+					"bmw5/trunk-preview.png"
+				]
+			}
+		},
+		"c": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"c/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "c/body-area.json",
+				"previews": [
+					"c/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"c/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"c/fbumper.json",
+					"c/fbumper-amg.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "c/fbumper-area.json",
+				"previews": [
+					"c/fbumper-preview.png",
+					"c/fbumper-amg-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"c/glass.json"
+				],
+				"material": "glass",
+				"area": "c/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"c/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "c/hood-area.json",
+				"previews": [
+					"c/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"c/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"c/lens.json"
+				],
+				"material": "glass",
+				"area": "c/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"c/rbumper.json",
+					"c/rbumper-amg.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "c/rbumper-area.json",
+				"previews": [
+					"c/rbumper-preview.png",
+					"c/rbumper-amg-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"c/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "c/reflector-area.json",
+				"previews": [
+					"c/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"c/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "c/roof-area.json",
+				"previews": [
+					"c/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"c/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "c/sideskirt-area.json",
+				"previews": [
+					"c/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"c/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "c/trunk-area.json",
+				"previews": [
+					"c/trunk-preview.png"
+				]
+			}
+		},
+		"camry": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"camry/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "camry/body-area.json",
+				"previews": [
+					"camry/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"camry/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"camry/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "camry/fbumper-area.json",
+				"previews": [
+					"camry/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"camry/glass.json"
+				],
+				"material": "glass",
+				"area": "camry/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"camry/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "camry/hood-area.json",
+				"previews": [
+					"camry/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"camry/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"camry/lens.json"
+				],
+				"material": "glass",
+				"area": "camry/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"camry/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "camry/rbumper-area.json",
+				"previews": [
+					"camry/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"camry/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "camry/reflector-area.json",
+				"previews": [
+					"camry/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"camry/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "camry/roof-area.json",
+				"previews": [
+					"camry/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"camry/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "camry/sideskirt-area.json",
+				"previews": [
+					"camry/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"camry/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "camry/trunk-area.json",
+				"previews": [
+					"camry/trunk-preview.png"
+				]
+			}
+		},
+		"cayenne": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne/body-area.json",
+				"previews": [
+					"cayenne/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"cayenne/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne/fbumper.json",
+					"cayenne/fbumper-hamann.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne/fbumper-area.json",
+				"previews": [
+					"cayenne/fbumper-preview.png",
+					"cayenne/fbumper-hamann-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne/glass.json"
+				],
+				"material": "glass",
+				"area": "cayenne/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne/hood-area.json",
+				"previews": [
+					"cayenne/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"cayenne/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne/lens.json"
+				],
+				"material": "glass",
+				"area": "cayenne/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne/rbumper.json",
+					"cayenne/rbumper-hamann.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne/rbumper-area.json",
+				"previews": [
+					"cayenne/rbumper-preview.png",
+					"cayenne/rbumper-hamann-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne/reflector-area.json",
+				"previews": [
+					"cayenne/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne/roof-area.json",
+				"previews": [
+					"cayenne/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne/sideskirt-area.json",
+				"previews": [
+					"cayenne/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne/trunk-area.json",
+				"previews": [
+					"cayenne/trunk-preview.png"
+				]
+			}
+		},
+		"cayenne2015": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne2015/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne2015/body-area.json",
+				"previews": [
+					"cayenne2015/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"cayenne2015/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne2015/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne2015/fbumper-area.json",
+				"previews": [
+					"cayenne2015/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne2015/glass.json"
+				],
+				"material": "glass",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne2015/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne2015/hood-area.json",
+				"previews": [
+					"cayenne2015/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"cayenne2015/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne2015/lens.json"
+				],
+				"material": "glass",
+				"area": "cayenne2015/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne2015/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne2015/rbumper-area.json",
+				"previews": [
+					"cayenne2015/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne2015/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne2015/reflector-area.json",
+				"previews": [
+					"cayenne2015/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne2015/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne2015/roof-area.json",
+				"previews": [
+					"cayenne2015/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne2015/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne2015/sideskirt-area.json",
+				"previews": [
+					"cayenne2015/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cayenne2015/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cayenne2015/trunk-area.json",
+				"previews": [
+					"cayenne2015/trunk-preview.png"
+				]
+			}
+		},
+		"cc": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cc/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cc/body-area.json",
+				"previews": [
+					"cc/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"cc/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cc/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cc/fbumper-area.json",
+				"previews": [
+					"cc/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cc/glass.json"
+				],
+				"material": "glass",
+				"area": "cc/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cc/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cc/hood-area.json",
+				"previews": [
+					"cc/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"cc/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cc/lens.json"
+				],
+				"material": "glass",
+				"area": "cc/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cc/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cc/rbumper-area.json",
+				"previews": [
+					"cc/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cc/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cc/reflector-area.json",
+				"previews": [
+					"cc/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cc/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cc/roof-area.json",
+				"previews": [
+					"cc/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cc/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cc/sideskirt-area.json",
+				"previews": [
+					"cc/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cc/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cc/trunk-area.json",
+				"previews": [
+					"cc/trunk-preview.png"
+				]
+			}
+		},
+		"civic": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"civic/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "civic/body-area.json",
+				"previews": [
+					"civic/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"civic/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"civic/fbumper.json",
+					"civic/fbumper-si.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "civic/fbumper-area.json",
+				"previews": [
+					"civic/fbumper-preview.png",
+					"civic/fbumper-si-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"civic/glass.json"
+				],
+				"material": "glass",
+				"area": "civic/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"civic/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "civic/hood-area.json",
+				"previews": [
+					"civic/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"civic/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"civic/lens.json"
+				],
+				"material": "glass",
+				"area": "civic/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"civic/rbumper.json",
+					"civic/rbumper-si.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "civic/rbumper-area.json",
+				"previews": [
+					"civic/rbumper-preview.png",
+					"civic/rbumper-si-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"civic/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "civic/reflector-area.json",
+				"previews": [
+					"civic/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"civic/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "civic/roof-area.json",
+				"previews": [
+					"civic/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"civic/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "civic/sideskirt-area.json",
+				"previews": [
+					"civic/sideskirt-preview.png"
+				]
+			},
+			"spoiler": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"civic/spoiler-si.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "civic/spoiler-area.json",
+				"previews": [
+					"civic/spoiler-si-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"civic/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "civic/trunk-area.json",
+				"previews": [
+					"civic/trunk-preview.png"
+				]
+			}
+		},
+		"cla": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cla/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cla/body-area.json",
+				"previews": [
+					"cla/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"cla/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cla/fbumper.json",
+					"cla/fbumper-amg.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cla/fbumper-area.json",
+				"previews": [
+					"cla/fbumper-preview.png",
+					"cla/fbumper-amg-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cla/glass.json"
+				],
+				"material": "glass",
+				"area": "cla/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cla/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cla/hood-area.json",
+				"previews": [
+					"cla/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"cla/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cla/lens.json"
+				],
+				"material": "glass",
+				"area": "cla/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cla/rbumper.json",
+					"cla/rbumper-amg.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cla/rbumper-area.json",
+				"previews": [
+					"cla/rbumper-preview.png",
+					"cla/rbumper-amg-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cla/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cla/reflector-area.json",
+				"previews": [
+					"cla/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cla/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cla/roof-area.json",
+				"previews": [
+					"cla/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cla/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cla/sideskirt-area.json",
+				"previews": [
+					"cla/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cla/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cla/trunk-area.json",
+				"previews": [
+					"cla/trunk-preview.png"
+				]
+			}
+		},
+		"cooper": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cooper/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cooper/body-area.json",
+				"previews": [
+					"cooper/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"cooper/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cooper/fbumper.json",
+					"cooper/fbumper-jcw.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cooper/fbumper-area.json",
+				"previews": [
+					"cooper/fbumper-preview.png",
+					"cooper/fbumper-jcw-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cooper/glass.json"
+				],
+				"material": "glass",
+				"area": "cooper/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cooper/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cooper/hood-area.json",
+				"previews": [
+					"cooper/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"cooper/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cooper/lens.json"
+				],
+				"material": "glass",
+				"area": "cooper/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cooper/rbumper.json",
+					"cooper/rbumper-jcw.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cooper/rbumper-area.json",
+				"previews": [
+					"cooper/rbumper-preview.png",
+					"cooper/rbumper-jcw-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cooper/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cooper/reflector-area.json",
+				"previews": [
+					"cooper/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cooper/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cooper/roof-area.json",
+				"previews": [
+					"cooper/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cooper/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"previews": [
+					"cooper/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cooper/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cooper/trunk-area.json",
+				"previews": [
+					"cooper/trunk-preview.png"
+				]
+			}
+		},
+		"countryman": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"countryman/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "countryman/body-area.json",
+				"previews": [
+					"countryman/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"countryman/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"countryman/fbumper.json",
+					"countryman/fbumper-jcw.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "countryman/fbumper-area.json",
+				"previews": [
+					"countryman/fbumper-preview.png",
+					"countryman/fbumper-jcw-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"countryman/glass.json"
+				],
+				"material": "glass",
+				"area": "countryman/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"countryman/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "countryman/hood-area.json",
+				"previews": [
+					"countryman/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"countryman/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"countryman/lens.json"
+				],
+				"material": "glass",
+				"area": "countryman/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"countryman/rbumper.json",
+					"countryman/rbumper-jcw.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "countryman/rbumper-area.json",
+				"previews": [
+					"countryman/rbumper-preview.png",
+					"countryman/rbumper-jcw-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"countryman/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "countryman/reflector-area.json",
+				"previews": [
+					"countryman/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"countryman/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "countryman/roof-area.json",
+				"previews": [
+					"countryman/roof-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"countryman/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "countryman/trunk-area.json",
+				"previews": [
+					"countryman/trunk-preview.png"
+				]
+			}
+		},
+		"coupe": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"coupe/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "coupe/body-area.json",
+				"previews": [
+					"coupe/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"coupe/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"coupe/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "coupe/fbumper-area.json",
+				"previews": [
+					"coupe/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"coupe/glass.json"
+				],
+				"material": "glass",
+				"area": "coupe/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"coupe/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "coupe/hood-area.json",
+				"previews": [
+					"coupe/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"coupe/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"coupe/lens.json"
+				],
+				"material": "glass",
+				"area": "coupe/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"coupe/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "coupe/rbumper-area.json",
+				"previews": [
+					"coupe/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"coupe/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "coupe/reflector-area.json",
+				"previews": [
+					"coupe/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"coupe/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "coupe/roof-area.json",
+				"previews": [
+					"coupe/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"coupe/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "coupe/sideskirt-area.json",
+				"previews": [
+					"coupe/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"coupe/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "coupe/trunk-area.json",
+				"previews": [
+					"coupe/trunk-preview.png"
+				]
+			}
+		},
+		"cruze": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cruze/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cruze/body-area.json",
+				"previews": [
+					"cruze/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"cruze/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cruze/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cruze/fbumper-area.json",
+				"previews": [
+					"cruze/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cruze/glass.json"
+				],
+				"material": "glass",
+				"area": "cruze/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cruze/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cruze/hood-area.json",
+				"previews": [
+					"cruze/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"cruze/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cruze/lens.json"
+				],
+				"material": "glass",
+				"area": "cruze/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cruze/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cruze/rbumper-area.json",
+				"previews": [
+					"cruze/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cruze/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cruze/reflector-area.json",
+				"previews": [
+					"cruze/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cruze/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cruze/roof-area.json",
+				"previews": [
+					"cruze/roof-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cruze/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cruze/trunk-area.json",
+				"previews": [
+					"cruze/trunk-preview.png"
+				]
+			}
+		},
+		"ct": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ct/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ct/body-area.json",
+				"previews": [
+					"ct/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"ct/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ct/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ct/fbumper-area.json",
+				"previews": [
+					"ct/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"ct/glass.json"
+				],
+				"material": "glass",
+				"area": "ct/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ct/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ct/hood-area.json",
+				"previews": [
+					"ct/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"ct/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"ct/lens.json"
+				],
+				"material": "glass",
+				"area": "ct/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ct/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ct/rbumper-area.json",
+				"previews": [
+					"ct/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ct/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ct/reflector-area.json",
+				"previews": [
+					"ct/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ct/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ct/roof-area.json",
+				"previews": [
+					"ct/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ct/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ct/sideskirt-area.json",
+				"previews": [
+					"ct/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ct/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ct/trunk-area.json",
+				"previews": [
+					"ct/trunk-preview.png"
+				]
+			}
+		},
+		"cts": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cts/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cts/body-area.json",
+				"previews": [
+					"cts/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"cts/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cts/fbumper.json",
+					"cts/fbumper-v.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cts/fbumper-area.json",
+				"previews": [
+					"cts/fbumper-preview.png",
+					"cts/fbumper-v-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cts/glass.json"
+				],
+				"material": "glass",
+				"area": "cts/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cts/hood.json",
+					"cts/hood-v.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cts/hood-area.json",
+				"previews": [
+					"cts/hood-preview.png",
+					"cts/hood-v-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"cts/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"cts/lens.json"
+				],
+				"material": "glass",
+				"area": "cts/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cts/rbumper.json",
+					"cts/rbumper-v.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cts/rbumper-area.json",
+				"previews": [
+					"cts/rbumper-preview.png",
+					"cts/rbumper-v-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cts/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cts/reflector-area.json",
+				"previews": [
+					"cts/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cts/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cts/roof-area.json",
+				"previews": [
+					"cts/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cts/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cts/sideskirt-area.json",
+				"previews": [
+					"cts/sideskirt-preview.png"
+				]
+			},
+			"spoiler": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cts/spoiler-v.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cts/spoiler-area.json",
+				"previews": [
+					"cts/spoiler-v-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"cts/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "cts/trunk-area.json",
+				"previews": [
+					"cts/trunk-preview.png"
+				]
+			}
+		},
+		"e": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"e/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "e/body-area.json",
+				"previews": [
+					"e/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"e/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"e/fbumper.json",
+					"e/fbumper-amg.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "e/fbumper-area.json",
+				"previews": [
+					"e/fbumper-preview.png",
+					"e/fbumper-amg-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"e/glass.json"
+				],
+				"material": "glass",
+				"area": "e/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"e/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "e/hood-area.json",
+				"previews": [
+					"e/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"e/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"e/lens.json"
+				],
+				"material": "glass",
+				"area": "e/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"e/rbumper.json",
+					"e/rbumper-amg.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "e/rbumper-area.json",
+				"previews": [
+					"e/rbumper-preview.png",
+					"e/rbumper-amg-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"e/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "e/reflector-area.json",
+				"previews": [
+					"e/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"e/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "e/roof-area.json",
+				"previews": [
+					"e/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"e/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "e/sideskirt-area.json",
+				"previews": [
+					"e/sideskirt-preview.png"
+				]
+			},
+			"spoiler": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"e/spoileramg.json",
+					"e/spoiler-amg.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "e/spoiler-area.json",
+				"previews": [
+					"e/spoiler-amg-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"e/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "e/trunk-area.json",
+				"previews": [
+					"e/trunk-preview.png"
+				]
+			}
+		},
+		"evoque": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"evoque/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "evoque/body-area.json",
+				"previews": [
+					"evoque/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"evoque/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"evoque/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "evoque/fbumper-area.json",
+				"previews": [
+					"evoque/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"evoque/glass.json"
+				],
+				"material": "glass",
+				"area": "evoque/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"evoque/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "evoque/hood-area.json",
+				"previews": [
+					"evoque/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"evoque/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"evoque/lens.json"
+				],
+				"material": "glass",
+				"area": "evoque/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"evoque/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "evoque/rbumper-area.json",
+				"previews": [
+					"evoque/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"evoque/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "evoque/reflector-area.json",
+				"previews": [
+					"evoque/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"evoque/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "evoque/roof-area.json",
+				"previews": [
+					"evoque/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"evoque/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "evoque/sideskirt-area.json",
+				"previews": [
+					"evoque/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"evoque/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "evoque/trunk-area.json",
+				"previews": [
+					"evoque/trunk-preview.png"
+				]
+			}
+		},
+		"focus": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"focus/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "focus/body-area.json",
+				"previews": [
+					"focus/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"focus/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"focus/fbumper.json",
+					"focus/fbumper-rs.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "focus/fbumper-area.json",
+				"previews": [
+					"focus/fbumper-preview.png",
+					"focus/fbumper-rs-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"focus/glass.json"
+				],
+				"material": "glass",
+				"area": "focus/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"focus/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "focus/hood-area.json",
+				"previews": [
+					"focus/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"focus/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"focus/lens.json"
+				],
+				"material": "glass",
+				"area": "focus/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"focus/rbumper.json",
+					"focus/rbumper-rs.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "focus/rbumper-area.json",
+				"previews": [
+					"focus/rbumper-preview.png",
+					"focus/rbumper-rs-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"focus/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "focus/reflector-area.json",
+				"previews": [
+					"focus/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"focus/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "focus/roof-area.json",
+				"previews": [
+					"focus/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"focus/sideskirt-rs.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "focus/sideskirt-area.json",
+				"previews": [
+					"focus/sideskirt-rs-preview.png"
+				]
+			},
+			"spoiler": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"focus/spoiler.json",
+					"focus/spoiler-rs.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "focus/spoiler-area.json",
+				"previews": [
+					"focus/spoiler-preview.png",
+					"focus/spoiler-rs-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"focus/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "focus/trunk-area.json",
+				"previews": [
+					"focus/trunk-preview.png"
+				]
+			}
+		},
+		"ghibili": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ghibili/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ghibili/body-area.json",
+				"previews": [
+					"ghibili/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"ghibili/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ghibili/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ghibili/fbumper-area.json",
+				"previews": [
+					"ghibili/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"ghibili/glass.json"
+				],
+				"material": "glass",
+				"area": "ghibili/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ghibili/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ghibili/hood-area.json",
+				"previews": [
+					"ghibili/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"ghibili/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"ghibili/lens.json"
+				],
+				"material": "glass",
+				"area": "ghibili/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ghibili/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ghibili/rbumper-area.json",
+				"previews": [
+					"ghibili/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ghibili/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ghibili/reflector-area.json",
+				"previews": [
+					"ghibili/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ghibili/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ghibili/roof-area.json",
+				"previews": [
+					"ghibili/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ghibili/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ghibili/sideskirt-area.json",
+				"previews": [
+					"ghibili/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"ghibili/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "ghibili/trunk-area.json",
+				"previews": [
+					"ghibili/trunk-preview.png"
+				]
+			}
+		},
+		"golf": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"golf/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "golf/body-area.json",
+				"previews": [
+					"golf/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"golf/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"golf/fbumper.json",
+					"golf/fbumper-r.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "golf/fbumper-area.json",
+				"previews": [
+					"golf/fbumper-preview.png",
+					"golf/fbumper-r-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"golf/glass.json"
+				],
+				"material": "glass",
+				"area": "golf/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"golf/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "golf/hood-area.json",
+				"previews": [
+					"golf/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"golf/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"golf/lens.json"
+				],
+				"material": "glass",
+				"area": "golf/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"golf/rbumper.json",
+					"golf/rbumper-r.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "golf/rbumper-area.json",
+				"previews": [
+					"golf/rbumper-preview.png",
+					"golf/rbumper-r-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"golf/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "golf/reflector-area.json",
+				"previews": [
+					"golf/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"golf/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "golf/roof-area.json",
+				"previews": [
+					"golf/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"golf/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "golf/sideskirt-area.json",
+				"previews": [
+					"golf/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"golf/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "golf/trunk-area.json",
+				"previews": [
+					"golf/trunk-preview.png"
+				]
+			}
+		},
+		"gtr": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"gtr/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "gtr/body-area.json",
+				"previews": [
+					"gtr/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"gtr/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"gtr/fbumper.json",
+					"gtr/fbumper-nismo.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "gtr/fbumper-area.json",
+				"previews": [
+					"gtr/fbumper-preview.png",
+					"gtr/fbumper-nismo-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"gtr/glass.json"
+				],
+				"material": "glass",
+				"area": "gtr/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"gtr/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "gtr/hood-area.json",
+				"previews": [
+					"gtr/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"gtr/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"gtr/lens.json"
+				],
+				"material": "glass",
+				"area": "gtr/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"gtr/rbumper.json",
+					"gtr/rbumper-nismo.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "gtr/rbumper-area.json",
+				"previews": [
+					"gtr/rbumper-preview.png",
+					"gtr/rbumper-nismo-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"gtr/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "gtr/reflector-area.json",
+				"previews": [
+					"gtr/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"gtr/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "gtr/roof-area.json",
+				"previews": [
+					"gtr/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"gtr/sideskirt.json",
+					"gtr/sideskirt-nismo.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "gtr/sideskirt-area.json",
+				"previews": [
+					"gtr/sideskirt-preview.png",
+					"gtr/sideskirt-nismo-preview.png"
+				]
+			},
+			"spoiler": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"gtr/spoiler.json",
+					"gtr/spoiler-nismo.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "gtr/spoiler-area.json",
+				"previews": [
+					"gtr/spoiler-preview.png",
+					"gtr/spoiler-nismo-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"gtr/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "gtr/trunk-area.json",
+				"previews": [
+					"gtr/trunk-preview.png"
+				]
+			}
+		},
+		"is": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"is/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "is/body-area.json",
+				"previews": [
+					"is/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"is/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"is/fbumper.json",
+					"is/fbumper-sport.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "is/fbumper-area.json",
+				"previews": [
+					"is/fbumper-preview.png",
+					"is/fbumper-sport-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"is/glass.json"
+				],
+				"material": "glass",
+				"area": "is/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"is/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "is/hood-area.json",
+				"previews": [
+					"is/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"is/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"is/lens.json"
+				],
+				"material": "glass",
+				"area": "is/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"is/rbumper.json",
+					"is/rbumper-sport.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "is/rbumper-area.json",
+				"previews": [
+					"is/rbumper-preview.png",
+					"is/rbumper-sport-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"is/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "is/reflector-area.json",
+				"previews": [
+					"is/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"is/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "is/roof-area.json",
+				"previews": [
+					"is/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"is/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "is/sideskirt-area.json",
+				"previews": [
+					"is/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"is/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "is/trunk-area.json",
+				"previews": [
+					"is/trunk-preview.png"
+				]
+			}
+		},
+		"k5": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"k5/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "k5/body-area.json",
+				"previews": [
+					"k5/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"k5/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"k5/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "k5/fbumper-area.json",
+				"previews": [
+					"k5/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"k5/glass.json"
+				],
+				"material": "glass",
+				"area": "k5/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"k5/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "k5/hood-area.json",
+				"previews": [
+					"k5/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"k5/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"k5/lens.json"
+				],
+				"material": "glass",
+				"area": "k5/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"k5/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "k5/rbumper-area.json",
+				"previews": [
+					"k5/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"k5/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "k5/reflector-area.json",
+				"previews": [
+					"k5/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"k5/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "k5/roof-area.json",
+				"previews": [
+					"k5/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"k5/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "k5/sideskirt-area.json",
+				"previews": [
+					"k5/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"k5/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "k5/trunk-area.json",
+				"previews": [
+					"k5/trunk-preview.png"
+				]
+			}
+		},
+		"lancer": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"lancer/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "lancer/body-area.json",
+				"previews": [
+					"lancer/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"lancer/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"lancer/fbumper.json",
+					"lancer/fbumper-evo.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "lancer/fbumper-area.json",
+				"previews": [
+					"lancer/fbumper-preview.png",
+					"lancer/fbumper-evo-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"lancer/glass.json"
+				],
+				"material": "glass",
+				"area": "lancer/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"lancer/hood.json",
+					"lancer/hood-evo.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "lancer/hood-area.json",
+				"previews": [
+					"lancer/hood-preview.png",
+					"lancer/hood-evo-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"lancer/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"lancer/lens.json"
+				],
+				"material": "glass",
+				"area": "lancer/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"lancer/rbumper.json",
+					"lancer/rbumper-evo.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "lancer/rbumper-area.json",
+				"previews": [
+					"lancer/rbumper-preview.png",
+					"lancer/rbumper-evo-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"lancer/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "lancer/reflector-area.json",
+				"previews": [
+					"lancer/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"lancer/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "lancer/roof-area.json",
+				"previews": [
+					"lancer/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"lancer/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "lancer/sideskirt-area.json",
+				"previews": [
+					"lancer/sideskirt-preview.png"
+				]
+			},
+			"spoiler": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"lancer/spoiler-evo.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "lancer/spoiler-area.json",
+				"previews": [
+					"lancer/spoiler-evo-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"lancer/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "lancer/trunk-area.json",
+				"previews": [
+					"lancer/trunk-preview.png"
+				]
+			}
+		},
+		"macan": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"macan/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "macan/body-area.json",
+				"previews": [
+					"macan/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"macan/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"macan/fbumper.json",
+					"macan/fbumper-hamann.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "macan/fbumper-area.json",
+				"previews": [
+					"macan/fbumper-preview.png",
+					"macan/fbumper-hamann-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"macan/glass.json"
+				],
+				"material": "glass",
+				"area": "macan/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"macan/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "macan/hood-area.json",
+				"previews": [
+					"macan/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"macan/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"macan/lens.json"
+				],
+				"material": "glass",
+				"area": "macan/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"macan/rbumper.json",
+					"macan/rbumper-hamann.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "macan/rbumper-area.json",
+				"previews": [
+					"macan/rbumper-preview.png",
+					"macan/rbumper-hamann-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"macan/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "macan/reflector-area.json",
+				"previews": [
+					"macan/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"macan/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "macan/roof-area.json",
+				"previews": [
+					"macan/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"macan/sideskirt.json",
+					"macan/sideskirt-hamann.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "macan/sideskirt-area.json",
+				"previews": [
+					"macan/sideskirt-preview.png",
+					"macan/sideskirt-hamann-preview.png"
+				]
+			},
+			"spoiler": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"macan/spoiler.json",
+					"macan/spoiler-hamann.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "macan/spoiler-area.json",
+				"previews": [
+					"macan/spoiler-hamann-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"macan/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "macan/trunk-area.json",
+				"previews": [
+					"macan/trunk-preview.png"
+				]
+			}
+		},
+		"malibu": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"malibu/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "malibu/body-area.json",
+				"previews": [
+					"malibu/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"malibu/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"malibu/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "malibu/fbumper-area.json",
+				"previews": [
+					"malibu/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"malibu/glass.json"
+				],
+				"material": "glass",
+				"area": "malibu/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"malibu/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "malibu/hood-area.json",
+				"previews": [
+					"malibu/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"malibu/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"malibu/lens.json"
+				],
+				"material": "glass",
+				"area": "malibu/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"malibu/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "malibu/rbumper-area.json",
+				"previews": [
+					"malibu/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"malibu/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "malibu/reflector-area.json",
+				"previews": [
+					"malibu/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"malibu/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "malibu/roof-area.json",
+				"previews": [
+					"malibu/roof-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"malibu/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "malibu/trunk-area.json",
+				"previews": [
+					"malibu/trunk-preview.png"
+				]
+			}
+		},
+		"mazda6": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mazda6/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mazda6/body-area.json",
+				"previews": [
+					"mazda6/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"mazda6/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mazda6/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mazda6/fbumper-area.json",
+				"previews": [
+					"mazda6/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"mazda6/glass.json"
+				],
+				"material": "glass",
+				"area": "mazda6/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mazda6/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mazda6/hood-area.json",
+				"previews": [
+					"mazda6/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"mazda6/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"mazda6/lens.json"
+				],
+				"material": "glass",
+				"area": "mazda6/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mazda6/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mazda6/rbumper-area.json",
+				"previews": [
+					"mazda6/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mazda6/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mazda6/reflector-area.json",
+				"previews": [
+					"mazda6/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mazda6/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mazda6/roof-area.json",
+				"previews": [
+					"mazda6/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mazda6/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mazda6/sideskirt-area.json",
+				"previews": [
+					"mazda6/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mazda6/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mazda6/trunk-area.json",
+				"previews": [
+					"mazda6/trunk-preview.png"
+				]
+			}
+		},
+		"mondeo": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mondeo/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mondeo/body-area.json",
+				"previews": [
+					"mondeo/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"mondeo/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mondeo/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mondeo/fbumper-area.json",
+				"previews": [
+					"mondeo/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"mondeo/glass.json"
+				],
+				"material": "glass",
+				"area": "mondeo/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mondeo/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mondeo/hood-area.json",
+				"previews": [
+					"mondeo/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"mondeo/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"mondeo/lens.json"
+				],
+				"material": "glass",
+				"area": "mondeo/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mondeo/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mondeo/rbumper-area.json",
+				"previews": [
+					"mondeo/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mondeo/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mondeo/reflector-area.json",
+				"previews": [
+					"mondeo/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mondeo/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mondeo/roof-area.json",
+				"previews": [
+					"mondeo/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mondeo/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mondeo/sideskirt-area.json",
+				"previews": [
+					"mondeo/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"mondeo/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "mondeo/trunk-area.json",
+				"previews": [
+					"mondeo/trunk-preview.png"
+				]
+			}
+		},
+		"panamera": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"panamera/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "panamera/body-area.json",
+				"previews": [
+					"panamera/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"panamera/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"panamera/fbumper.json",
+					"panamera/fbumper-hamann.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "panamera/fbumper-area.json",
+				"previews": [
+					"panamera/fbumper-preview.png",
+					"panamera/fbumper-hamann-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"panamera/glass.json"
+				],
+				"material": "glass",
+				"area": "panamera/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"panamera/hood.json",
+					"panamera/hood-hamann.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "panamera/hood-area.json",
+				"previews": [
+					"panamera/hood-preview.png",
+					"panamera/hood-hamann-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"panamera/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"panamera/lens.json"
+				],
+				"material": "glass",
+				"area": "panamera/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"panamera/rbumper.json",
+					"panamera/rbumper-hamann.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "panamera/rbumper-area.json",
+				"previews": [
+					"panamera/rbumper-preview.png",
+					"panamera/rbumper-hamann-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"panamera/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "panamera/reflector-area.json",
+				"previews": [
+					"panamera/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"panamera/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "panamera/roof-area.json",
+				"previews": [
+					"panamera/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"panamera/sideskirt.json",
+					"panamera/sideskirt-hamann.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "panamera/sideskirt-area.json",
+				"previews": [
+					"panamera/sideskirt-preview.png",
+					"panamera/sideskirt-hamann-preview.png"
+				]
+			},
+			"spoiler": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"panamera/spoiler-hamann.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "panamera/spoiler-area.json",
+				"previews": [
+					"panamera/spoiler-hamann-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"panamera/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "panamera/trunk-area.json",
+				"previews": [
+					"panamera/trunk-preview.png"
+				]
+			}
+		},
+		"q50l": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"q50l/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "q50l/body-area.json",
+				"previews": [
+					"q50l/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"q50l/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"q50l/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "q50l/fbumper-area.json",
+				"previews": [
+					"q50l/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"q50l/glass.json"
+				],
+				"material": "glass",
+				"area": "q50l/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"q50l/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "q50l/hood-area.json",
+				"previews": [
+					"q50l/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"q50l/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"q50l/lens.json"
+				],
+				"material": "glass",
+				"area": "q50l/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"q50l/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "q50l/rbumper-area.json",
+				"previews": [
+					"q50l/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"q50l/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "q50l/reflector-area.json",
+				"previews": [
+					"q50l/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"q50l/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "q50l/roof-area.json",
+				"previews": [
+					"q50l/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"q50l/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "q50l/sideskirt-area.json",
+				"previews": [
+					"q50l/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"q50l/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "q50l/trunk-area.json",
+				"previews": [
+					"q50l/trunk-preview.png"
+				]
+			}
+		},
+		"regal": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"regal/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "regal/body-area.json",
+				"previews": [
+					"regal/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"regal/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"regal/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "regal/fbumper-area.json",
+				"previews": [
+					"regal/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"regal/glass.json"
+				],
+				"material": "glass",
+				"area": "regal/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"regal/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "regal/hood-area.json",
+				"previews": [
+					"regal/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"regal/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"regal/lens.json"
+				],
+				"material": "glass",
+				"area": "regal/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"regal/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "regal/rbumper-area.json",
+				"previews": [
+					"regal/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"regal/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "regal/reflector-area.json",
+				"previews": [
+					"regal/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"regal/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "regal/roof-area.json",
+				"previews": [
+					"regal/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"regal/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "regal/sideskirt-area.json",
+				"previews": [
+					"regal/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"regal/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "regal/trunk-area.json",
+				"previews": [
+					"regal/trunk-preview.png"
+				]
+			}
+		},
+		"reiz": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"reiz/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "reiz/body-area.json",
+				"previews": [
+					"reiz/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"reiz/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"reiz/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "reiz/fbumper-area.json",
+				"previews": [
+					"reiz/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"reiz/glass.json"
+				],
+				"material": "glass",
+				"area": "reiz/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"reiz/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "reiz/hood-area.json",
+				"previews": [
+					"reiz/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"reiz/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"reiz/lens.json"
+				],
+				"material": "glass",
+				"area": "reiz/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"reiz/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "reiz/rbumper-area.json",
+				"previews": [
+					"reiz/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"reiz/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "reiz/reflector-area.json",
+				"previews": [
+					"reiz/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"reiz/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "reiz/roof-area.json",
+				"previews": [
+					"reiz/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"reiz/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "reiz/sideskirt-area.json",
+				"previews": [
+					"reiz/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"reiz/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "reiz/trunk-area.json",
+				"previews": [
+					"reiz/trunk-preview.png"
+				]
+			}
+		},
+		"scirocco": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "scirocco/body-area.json",
+				"previews": [
+					"scirocco/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/fbumper.json",
+					"scirocco/fbumper-r.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "scirocco/fbumper-area.json",
+				"previews": [
+					"scirocco/fbumper-preview.png",
+					"scirocco/fbumper-r-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/glass.json"
+				],
+				"material": "glass",
+				"area": "scirocco/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "scirocco/hood-area.json",
+				"previews": [
+					"scirocco/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/lens.json"
+				],
+				"material": "glass",
+				"area": "scirocco/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/rbumper.json",
+					"scirocco/rbumper-r.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "scirocco/rbumper-area.json",
+				"previews": [
+					"scirocco/rbumper-preview.png",
+					"scirocco/rbumper-r-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "scirocco/reflector-area.json",
+				"previews": [
+					"scirocco/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "scirocco/roof-area.json",
+				"previews": [
+					"scirocco/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "scirocco/sideskirt-area.json",
+				"previews": [
+					"scirocco/sideskirt-preview.png"
+				]
+			},
+			"spoiler": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/spoiler.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"previews": false
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"scirocco/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "scirocco/trunk-area.json",
+				"previews": [
+					"scirocco/trunk-preview.png"
+				]
+			}
+		},
+		"smart": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"smart/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "smart/body-area.json",
+				"previews": [
+					"smart/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"smart/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"smart/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "smart/fbumper-area.json",
+				"previews": [
+					"smart/fbumper-preview.png"
+				]
+			},
+			"frame": {
+				"color": "#ffffff",
+				"choices": [
+					"smart/frame.json"
+				],
+				"area": "smart/frame-area.json",
+				"previews": [
+					"smart/frame-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"smart/glass.json"
+				],
+				"material": "glass",
+				"area": "smart/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"smart/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "smart/hood-area.json",
+				"previews": [
+					"smart/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"smart/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"smart/lens.json"
+				],
+				"material": "glass",
+				"area": "smart/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"smart/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "smart/rbumper-area.json",
+				"previews": [
+					"smart/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"smart/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "smart/reflector-area.json",
+				"previews": [
+					"smart/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"smart/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "smart/roof-area.json",
+				"previews": [
+					"smart/roof-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"smart/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "smart/trunk-area.json",
+				"previews": [
+					"smart/trunk-preview.png"
+				]
+			}
+		},
+		"sonata": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"sonata/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "sonata/body-area.json",
+				"previews": [
+					"sonata/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"sonata/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"sonata/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "sonata/fbumper-area.json",
+				"previews": [
+					"sonata/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"sonata/glass.json"
+				],
+				"material": "glass",
+				"area": "sonata/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"sonata/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "sonata/hood-area.json",
+				"previews": [
+					"sonata/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"sonata/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"sonata/lens.json"
+				],
+				"material": "glass",
+				"area": "sonata/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"sonata/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "sonata/rbumper-area.json",
+				"previews": [
+					"sonata/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"sonata/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "sonata/reflector-area.json",
+				"previews": [
+					"sonata/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"sonata/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "sonata/roof-area.json",
+				"previews": [
+					"sonata/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"sonata/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "sonata/sideskirt-area.json",
+				"previews": [
+					"sonata/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"sonata/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "sonata/trunk-area.json",
+				"previews": [
+					"sonata/trunk-preview.png"
+				]
+			}
+		},
+		"spirior": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"spirior/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "spirior/body-area.json",
+				"previews": [
+					"spirior/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"spirior/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"spirior/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "spirior/fbumper-area.json",
+				"previews": [
+					"spirior/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"spirior/glass.json"
+				],
+				"material": "glass",
+				"area": "spirior/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"spirior/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "spirior/hood-area.json",
+				"previews": [
+					"spirior/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"spirior/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"spirior/lens.json"
+				],
+				"material": "glass",
+				"area": "spirior/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"spirior/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "spirior/rbumper-area.json",
+				"previews": [
+					"spirior/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"spirior/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "spirior/reflector-area.json",
+				"previews": [
+					"spirior/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"spirior/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "spirior/roof-area.json",
+				"previews": [
+					"spirior/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"spirior/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "spirior/sideskirt-area.json",
+				"previews": [
+					"spirior/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"spirior/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "spirior/trunk-area.json",
+				"previews": [
+					"spirior/trunk-preview.png"
+				]
+			}
+		},
+		"tt": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"tt/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "tt/body-area.json",
+				"previews": [
+					"tt/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"tt/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"tt/fbumper.json",
+					"tt/fbumper-rs.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "tt/fbumper-area.json",
+				"previews": [
+					"tt/fbumper-preview.png",
+					"tt/fbumper-rs-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"tt/glass.json"
+				],
+				"material": "glass",
+				"area": "tt/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"tt/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "tt/hood-area.json",
+				"previews": [
+					"tt/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"tt/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"tt/lens.json"
+				],
+				"material": "glass",
+				"area": "tt/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"tt/rbumper.json",
+					"tt/rbumper-rs.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "tt/rbumper-area.json",
+				"previews": [
+					"tt/rbumper-preview.png",
+					"tt/rbumper-rs-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"tt/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "tt/reflector-area.json",
+				"previews": [
+					"tt/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"tt/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "tt/roof-area.json",
+				"previews": [
+					"tt/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"tt/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "tt/sideskirt-area.json",
+				"previews": [
+					"tt/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"tt/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "tt/trunk-area.json",
+				"previews": [
+					"tt/trunk-preview.png"
+				]
+			}
+		},
+		"xf": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xf/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xf/body-area.json",
+				"previews": [
+					"xf/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"xf/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xf/fbumper.json",
+					"xf/fbumper-rs.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xf/fbumper-area.json",
+				"previews": [
+					"xf/fbumper-preview.png",
+					"xf/fbumper-rs-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"xf/glass.json"
+				],
+				"material": "glass",
+				"area": "xf/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xf/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xf/hood-area.json",
+				"previews": [
+					"xf/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"xf/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"xf/lens.json"
+				],
+				"material": "glass",
+				"area": "xf/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xf/rbumper.json",
+					"xf/rbumper-rs.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xf/rbumper-area.json",
+				"previews": [
+					"xf/rbumper-preview.png",
+					"xf/rbumper-rs-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xf/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xf/reflector-area.json",
+				"previews": [
+					"xf/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xf/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xf/roof-area.json",
+				"previews": [
+					"xf/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xf/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xf/sideskirt-area.json",
+				"previews": [
+					"xf/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xf/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xf/trunk-area.json",
+				"previews": [
+					"xf/trunk-preview.png"
+				]
+			}
+		},
+		"xj": {
+			"body": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xj/body.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xj/body-area.json",
+				"previews": [
+					"xj/body-preview.png"
+				]
+			},
+			"chassis": {
+				"color": "#ffffff",
+				"choices": [
+					"xj/chassis.json"
+				],
+				"previews": false
+			},
+			"fbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xj/fbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xj/fbumper-area.json",
+				"previews": [
+					"xj/fbumper-preview.png"
+				]
+			},
+			"glass": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"xj/glass.json"
+				],
+				"material": "glass",
+				"area": "xj/glass-area.json",
+				"previews": false
+			},
+			"hood": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xj/hood.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xj/hood-area.json",
+				"previews": [
+					"xj/hood-preview.png"
+				]
+			},
+			"interior": {
+				"color": "#ffffff",
+				"choices": [
+					"xj/interior.json"
+				],
+				"previews": false
+			},
+			"lens": {
+				"reflectivity": 1,
+				"color": "#ffffff",
+				"choices": [
+					"xj/lens.json"
+				],
+				"material": "glass",
+				"area": "xj/lens-area.json",
+				"previews": false
+			},
+			"rbumper": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xj/rbumper.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xj/rbumper-area.json",
+				"previews": [
+					"xj/rbumper-preview.png"
+				]
+			},
+			"reflector": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xj/reflector.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xj/reflector-area.json",
+				"previews": [
+					"xj/reflector-preview.png"
+				]
+			},
+			"roof": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xj/roof.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xj/roof-area.json",
+				"previews": [
+					"xj/roof-preview.png"
+				]
+			},
+			"sideskirt": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xj/sideskirt.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xj/sideskirt-area.json",
+				"previews": [
+					"xj/sideskirt-preview.png"
+				]
+			},
+			"trunk": {
+				"all": true,
+				"set": true,
+				"color": "#ffffff",
+				"choices": [
+					"xj/trunk.json"
+				],
+				"material": "normal",
+				"materials": [
+					"carbon",
+					"discolor",
+					"drawbench",
+					"electroplate",
+					"matte",
+					"matting",
+					"normal"
+				],
+				"area": "xj/trunk-area.json",
+				"previews": [
+					"xj/trunk-preview.png"
+				]
+			}
+		}
+	};
+
+/***/ },
+/* 17 */
+/***/ function(module, exports) {
+
+	module.exports = {
+		"14": {
+			"tyre": {
+				"choices": [
+					"14/tyre14.json"
+				],
+				"area": "tyre/tyre14.json",
+				"previews": false
+			},
+			"rim": {
+				"choices": [
+					"14/MSW-14.json",
+					"14/MSW-19.json",
+					"14/MSW-20-4.json",
+					"14/MSW-22.json",
+					"14/MSW-77.json",
+					"14/MSW-85.json",
+					"14/Sparco-Pista.json"
+				],
+				"color": "#ffffff",
+				"material": "steel",
+				"materials": [
+					"discolor",
+					"electroplate",
+					"matte"
+				],
+				"previews": [
+					"14/MSW-14-preview.png",
+					"14/MSW-19-preview.png",
+					"14/MSW-20-4-preview.png",
+					"14/MSW-22-preview.png",
+					"14/MSW-77-preview.png",
+					"14/MSW-85-preview.png",
+					"14/Sparco-Pista-preview.png"
+				],
+				"area": "rim/14.json",
+				"set": true
+			},
+			"caliper": {
+				"choices": [
+					"14/caliper.json"
+				],
+				"material": "steel",
+				"set": true,
+				"previews": false
+			}
+		},
+		"15": {
+			"tyre": {
+				"choices": [
+					"15/tyre15.json"
+				],
+				"area": "tyre/tyre15.json",
+				"previews": false
+			},
+			"rim": {
+				"choices": [
+					"15/MSW-11.json",
+					"15/MSW-14.json",
+					"15/MSW-19.json",
+					"15/MSW-20-4.json",
+					"15/MSW-22.json",
+					"15/MSW-23.json",
+					"15/MSW-24.json",
+					"15/MSW-77.json",
+					"15/MSW-85.json",
+					"15/MSW-86.json",
+					"15/Sparco-Drift.json",
+					"15/Sparco-RTT.json",
+					"15/Sparco-Assettogara.json",
+					"15/Sparco-Pista.json"
+				],
+				"color": "#ffffff",
+				"material": "steel",
+				"materials": [
+					"discolor",
+					"electroplate",
+					"matte"
+				],
+				"previews": [
+					"15/MSW-11-preview.png",
+					"15/MSW-14-preview.png",
+					"15/MSW-19-preview.png",
+					"15/MSW-20-4-preview.png",
+					"15/MSW-22-preview.png",
+					"15/MSW-23-preview.png",
+					"15/MSW-24-preview.png",
+					"15/MSW-77-preview.png",
+					"15/MSW-85-preview.png",
+					"15/MSW-86-preview.png",
+					"15/Sparco-Drift-preview.png",
+					"15/Sparco-RTT-preview.png",
+					"15/Sparco-Assettogara-preview.png",
+					"15/Sparco-Pista-preview.png"
+				],
+				"area": "rim/15.json",
+				"set": true
+			},
+			"caliper": {
+				"choices": [
+					"15/caliper.json"
+				],
+				"material": "steel",
+				"set": true,
+				"previews": false
+			}
+		},
+		"16": {
+			"tyre": {
+				"choices": [
+					"16/tyre16.json"
+				],
+				"area": "tyre/tyre16.json",
+				"previews": false
+			},
+			"rim": {
+				"choices": [
+					"16/BBS-SR.json",
+					"16/MSW-11.json",
+					"16/MSW-14.json",
+					"16/MSW-19.json",
+					"16/MSW-20-4.json",
+					"16/MSW-22.json",
+					"16/MSW-23.json",
+					"16/MSW-25.json",
+					"16/MSW-26.json",
+					"16/MSW-77.json",
+					"16/AEZ-Valencia.json",
+					"16/MSW-20-5.json",
+					"16/MSW-24.json",
+					"16/MSW-85.json",
+					"16/MSW-86.json",
+					"16/MSW-Crossover.json",
+					"16/Sparco-Assettogara.json",
+					"16/Sparco-Drift.json",
+					"16/Sparco-Pista.json",
+					"16/Sparco-RTT.json",
+					"16/Sparco-Terra.json"
+				],
+				"color": "#ffffff",
+				"material": "steel",
+				"materials": [
+					"discolor",
+					"electroplate",
+					"matte"
+				],
+				"previews": [
+					"16/BBS-SR-preview.png",
+					"16/MSW-11-preview.png",
+					"16/MSW-14-preview.png",
+					"16/MSW-19-preview.png",
+					"16/MSW-20-4-preview.png",
+					"16/MSW-22-preview.png",
+					"16/MSW-23-preview.png",
+					"16/MSW-25-preview.png",
+					"16/MSW-26-preview.png",
+					"16/MSW-77-preview.png",
+					"16/AEZ-Valencia-preview.png",
+					"16/MSW-20-5-preview.png",
+					"16/MSW-24-preview.png",
+					"16/MSW-85-preview.png",
+					"16/MSW-86-preview.png",
+					"16/MSW-Crossover-preview.png",
+					"16/Sparco-Assettogara-preview.png",
+					"16/Sparco-Drift-preview.png",
+					"16/Sparco-Pista-preview.png",
+					"16/Sparco-RTT-preview.png",
+					"16/Sparco-Terra-preview.png"
+				],
+				"area": "rim/16.json",
+				"set": true
+			},
+			"caliper": {
+				"choices": [
+					"16/caliper.json"
+				],
+				"material": "steel",
+				"set": true,
+				"previews": false
+			}
+		},
+		"17": {
+			"tyre": {
+				"choices": [
+					"17/tyre17.json"
+				],
+				"area": "tyre/tyre17.json",
+				"previews": false
+			},
+			"rim": {
+				"choices": [
+					"17/AEZ-Cliff.json",
+					"17/AEZ-Genua.json",
+					"17/AEZ-Raise.json",
+					"17/AEZ-Reef.json",
+					"17/AEZ-Straight.json",
+					"17/AEZ-Valencia.json",
+					"17/AEZ-Yacht.json",
+					"17/BBS-CS.json",
+					"17/BBS-LM.json",
+					"17/BBS-SR.json",
+					"17/BBS-SX.json",
+					"17/MSW-11.json",
+					"17/MSW-14.json",
+					"17/MSW-19.json",
+					"17/MSW-20-4.json",
+					"17/MSW-20-5.json",
+					"17/MSW-22.json",
+					"17/MSW-23.json",
+					"17/MSW-24.json",
+					"17/MSW-25.json",
+					"17/MSW-26.json",
+					"17/MSW-27.json",
+					"17/MSW-45.json",
+					"17/MSW-46.json",
+					"17/MSW-47.json",
+					"17/MSW-55.json",
+					"17/MSW-77.json",
+					"17/MSW-85.json",
+					"17/MSW-86.json",
+					"17/MSW-Crossover.json",
+					"17/Sparco-Assettogara.json",
+					"17/Sparco-Drift.json",
+					"17/Sparco-Pista.json",
+					"17/Sparco-Pro-Corsa.json",
+					"17/Sparco-RTT.json",
+					"17/Sparco-Tarmac.json",
+					"17/Sparco-Terra.json"
+				],
+				"color": "#ffffff",
+				"material": "steel",
+				"materials": [
+					"discolor",
+					"electroplate",
+					"matte"
+				],
+				"previews": [
+					"17/AEZ-Cliff-preview.png",
+					"17/AEZ-Genua-preview.png",
+					"17/AEZ-Raise-preview.png",
+					"17/AEZ-Reef-preview.png",
+					"17/AEZ-Straight-preview.png",
+					"17/AEZ-Valencia-preview.png",
+					"17/AEZ-Yacht-preview.png",
+					"17/BBS-CS-preview.png",
+					"17/BBS-LM-preview.png",
+					"17/BBS-SR-preview.png",
+					"17/BBS-SX-preview.png",
+					"17/MSW-11-preview.png",
+					"17/MSW-14-preview.png",
+					"17/MSW-19-preview.png",
+					"17/MSW-20-4-preview.png",
+					"17/MSW-20-5-preview.png",
+					"17/MSW-22-preview.png",
+					"17/MSW-23-preview.png",
+					"17/MSW-24-preview.png",
+					"17/MSW-25-preview.png",
+					"17/MSW-26-preview.png",
+					"17/MSW-27-preview.png",
+					"17/MSW-45-preview.png",
+					"17/MSW-46-preview.png",
+					"17/MSW-47-preview.png",
+					"17/MSW-55-preview.png",
+					"17/MSW-77-preview.png",
+					"17/MSW-85-preview.png",
+					"17/MSW-86-preview.png",
+					"17/MSW-Crossover-preview.png",
+					"17/Sparco-Assettogara-preview.png",
+					"17/Sparco-Drift-preview.png",
+					"17/Sparco-Pista-preview.png",
+					"17/Sparco-Pro-Corsa-preview.png",
+					"17/Sparco-RTT-preview.png",
+					"17/Sparco-Tarmac-preview.png",
+					"17/Sparco-Terra-preview.png"
+				],
+				"area": "rim/17.json",
+				"set": true
+			},
+			"caliper": {
+				"choices": [
+					"17/caliper.json"
+				],
+				"material": "steel",
+				"set": true,
+				"previews": false
+			}
+		},
+		"18": {
+			"tyre": {
+				"choices": [
+					"18/tyre18.json"
+				],
+				"area": "tyre/tyre18.json",
+				"previews": false
+			},
+			"rim": {
+				"choices": [
+					"18/AEZ-Antigua.json",
+					"18/AEZ-Cliff.json",
+					"18/AEZ-Genua.json",
+					"18/AEZ-Raise.json",
+					"18/AEZ-Reef.json",
+					"18/AEZ-Straight.json",
+					"18/AEZ-Strike.json",
+					"18/AEZ-Valencia.json",
+					"18/AEZ-Yacht.json",
+					"18/BBS-CH-R.json",
+					"18/BBS-CS.json",
+					"18/BBS-LM.json",
+					"18/BBS-SR.json",
+					"18/BBS-SX.json",
+					"18/BBS-XA.json",
+					"18/MSW-11.json",
+					"18/MSW-14.json",
+					"18/MSW-19.json",
+					"18/MSW-20-5.json",
+					"18/MSW-23.json",
+					"18/MSW-24.json",
+					"18/MSW-25.json",
+					"18/MSW-26.json",
+					"18/MSW-27.json",
+					"18/MSW-45.json",
+					"18/MSW-47.json",
+					"18/MSW-55.json",
+					"18/MSW-86.json",
+					"18/MSW-Crossover.json",
+					"18/Sparco-Assettogara.json",
+					"18/Sparco-Pista.json",
+					"18/Sparco-Pro-Corsa.json",
+					"18/Sparco-RTT.json",
+					"18/Sparco-Tarmac.json",
+					"18/Sparco-Terra.json"
+				],
+				"color": "#ffffff",
+				"material": "steel",
+				"materials": [
+					"discolor",
+					"electroplate",
+					"matte"
+				],
+				"previews": [
+					"18/AEZ-Antigua-preview.png",
+					"18/AEZ-Cliff-preview.png",
+					"18/AEZ-Genua-preview.png",
+					"18/AEZ-Raise-preview.png",
+					"18/AEZ-Reef-preview.png",
+					"18/AEZ-Straight-preview.png",
+					"18/AEZ-Strike-preview.png",
+					"18/AEZ-Valencia-preview.png",
+					"18/AEZ-Yacht-preview.png",
+					"18/BBS-CH-R-preview.png",
+					"18/BBS-CS-preview.png",
+					"18/BBS-LM-preview.png",
+					"18/BBS-SR-preview.png",
+					"18/BBS-SX-preview.png",
+					"18/BBS-XA-preview.png",
+					"18/MSW-11-preview.png",
+					"18/MSW-14-preview.png",
+					"18/MSW-19-preview.png",
+					"18/MSW-20-5-preview.png",
+					"18/MSW-23-preview.png",
+					"18/MSW-24-preview.png",
+					"18/MSW-25-preview.png",
+					"18/MSW-26-preview.png",
+					"18/MSW-27-preview.png",
+					"18/MSW-45-preview.png",
+					"18/MSW-47-preview.png",
+					"18/MSW-55-preview.png",
+					"18/MSW-86-preview.png",
+					"18/MSW-Crossover-preview.png",
+					"18/Sparco-Assettogara-preview.png",
+					"18/Sparco-Pista-preview.png",
+					"18/Sparco-Pro-Corsa-preview.png",
+					"18/Sparco-RTT-preview.png",
+					"18/Sparco-Tarmac-preview.png",
+					"18/Sparco-Terra-preview.png"
+				],
+				"area": "rim/18.json",
+				"set": true
+			},
+			"caliper": {
+				"choices": [
+					"18/caliper.json"
+				],
+				"material": "steel",
+				"set": true,
+				"previews": false
+			}
+		},
+		"19": {
+			"tyre": {
+				"choices": [
+					"19/tyre19.json"
+				],
+				"area": "tyre/tyre19.json",
+				"previews": false
+			},
+			"rim": {
+				"choices": [
+					"19/AEZ-Antigua.json",
+					"19/AEZ-Cliff.json",
+					"19/AEZ-Genua.json",
+					"19/AEZ-Raise.json",
+					"19/AEZ-Reef.json",
+					"19/AEZ-Straight.json",
+					"19/AEZ-Strike.json",
+					"19/AEZ-Sydney.json",
+					"19/AEZ-Valencia.json",
+					"19/AEZ-Yacht.json",
+					"19/Antera-501.json",
+					"19/Antera-505.json",
+					"19/Antera-509.json",
+					"19/BBS-CH-R.json",
+					"19/BBS-CS.json",
+					"19/BBS-CX-R.json",
+					"19/BBS-FI.json",
+					"19/BBS-LM.json",
+					"19/BBS-RX.json",
+					"19/BBS-SR.json",
+					"19/BBS-Super-RS.json",
+					"19/BBS-SV.json",
+					"19/BBS-SX.json",
+					"19/BBS-XA.json",
+					"19/MSW-20-5.json",
+					"19/MSW-24.json",
+					"19/MSW-25.json",
+					"19/MSW-26.json",
+					"19/MSW-47.json",
+					"19/MSW-55.json",
+					"19/MSW-Crossover.json"
+				],
+				"color": "#ffffff",
+				"material": "steel",
+				"materials": [
+					"discolor",
+					"electroplate",
+					"matte"
+				],
+				"previews": [
+					"19/AEZ-Antigua-preview.png",
+					"19/AEZ-Cliff-preview.png",
+					"19/AEZ-Genua-preview.png",
+					"19/AEZ-Raise-preview.png",
+					"19/AEZ-Reef-preview.png",
+					"19/AEZ-Straight-preview.png",
+					"19/AEZ-Strike-preview.png",
+					"19/AEZ-Sydney-preview.png",
+					"19/AEZ-Valencia-preview.png",
+					"19/AEZ-Yacht-preview.png",
+					"19/Antera-501-preview.png",
+					"19/Antera-505-preview.png",
+					"19/Antera-509-preview.png",
+					"19/BBS-CH-R-preview.png",
+					"19/BBS-CS-preview.png",
+					"19/BBS-CX-R-preview.png",
+					"19/BBS-FI-preview.png",
+					"19/BBS-LM-preview.png",
+					"19/BBS-RX-preview.png",
+					"19/BBS-SR-preview.png",
+					"19/BBS-Super-RS-preview.png",
+					"19/BBS-SV-preview.png",
+					"19/BBS-SX-preview.png",
+					"19/BBS-XA-preview.png",
+					"19/MSW-20-5-preview.png",
+					"19/MSW-24-preview.png",
+					"19/MSW-25-preview.png",
+					"19/MSW-26-preview.png",
+					"19/MSW-47-preview.png",
+					"19/MSW-55-preview.png",
+					"19/MSW-Crossover-preview.png"
+				],
+				"area": "rim/19.json",
+				"set": true
+			},
+			"caliper": {
+				"choices": [
+					"19/caliper.json"
+				],
+				"material": "steel",
+				"set": true,
+				"previews": false
+			}
+		},
+		"20": {
+			"tyre": {
+				"choices": [
+					"20/tyre20.json"
+				],
+				"area": "tyre/tyre20.json",
+				"previews": false
+			},
+			"rim": {
+				"choices": [
+					"20/AEZ-Antigua.json",
+					"20/AEZ-Cliff.json",
+					"20/AEZ-Reef.json",
+					"20/AEZ-Straight.json",
+					"20/AEZ-Strike.json",
+					"20/AEZ-Yacht.json",
+					"20/Antera-365.json",
+					"20/Antera-389.json",
+					"20/Antera-503.json",
+					"20/BBS-CH-R.json",
+					"20/BBS-CI-R.json",
+					"20/BBS-CX-R.json",
+					"20/BBS-FI.json",
+					"20/BBS-LM.json",
+					"20/BBS-RX.json",
+					"20/BBS-Super-RS.json",
+					"20/BBS-SV.json",
+					"20/BBS-XA.json"
+				],
+				"color": "#ffffff",
+				"material": "steel",
+				"materials": [
+					"discolor",
+					"electroplate",
+					"matte"
+				],
+				"previews": [
+					"20/AEZ-Antigua-preview.png",
+					"20/AEZ-Cliff-preview.png",
+					"20/AEZ-Reef-preview.png",
+					"20/AEZ-Straight-preview.png",
+					"20/AEZ-Strike-preview.png",
+					"20/AEZ-Yacht-preview.png",
+					"20/Antera-365-preview.png",
+					"20/Antera-389-preview.png",
+					"20/Antera-503-preview.png",
+					"20/BBS-CH-R-preview.png",
+					"20/BBS-CI-R-preview.png",
+					"20/BBS-CX-R-preview.png",
+					"20/BBS-FI-preview.png",
+					"20/BBS-LM-preview.png",
+					"20/BBS-RX-preview.png",
+					"20/BBS-Super-RS-preview.png",
+					"20/BBS-SV-preview.png",
+					"20/BBS-XA-preview.png"
+				],
+				"area": "rim/20.json",
+				"set": true
+			},
+			"caliper": {
+				"choices": [
+					"20/caliper.json"
+				],
+				"material": "steel",
+				"set": true,
+				"previews": false
+			}
+		},
+		"21": {
+			"tyre": {
+				"choices": [
+					"21/tyre21.json"
+				],
+				"area": "tyre/tyre21.json",
+				"previews": false
+			},
+			"rim": {
+				"choices": [
+					"21/Antera-389.json",
+					"21/Antra-509.json",
+					"21/BBS-CH-R.json",
+					"21/BBS-SV.json"
+				],
+				"color": "#ffffff",
+				"material": "steel",
+				"materials": [
+					"discolor",
+					"electroplate",
+					"matte"
+				],
+				"previews": [
+					"21/Antera-389-preview.png",
+					"21/Antra-509-preview.png",
+					"21/BBS-CH-R-preview.png",
+					"21/BBS-SV-preview.png"
+				],
+				"area": "rim/21.json",
+				"set": true
+			},
+			"caliper": {
+				"choices": [
+					"21/caliper.json"
+				],
+				"material": "steel",
+				"set": true,
+				"previews": false
+			}
+		},
+		"22": {
+			"tyre": {
+				"choices": [
+					"22/tyre22.json"
+				],
+				"area": "tyre/tyre22.json",
+				"previews": false
+			},
+			"rim": {
+				"choices": [
+					"22/Antera-389.json",
+					"22/BBS-SV.json"
+				],
+				"color": "#ffffff",
+				"material": "steel",
+				"materials": [
+					"discolor",
+					"electroplate",
+					"matte"
+				],
+				"previews": [
+					"22/Antera-389-preview.png",
+					"22/BBS-SV-preview.png"
+				],
+				"area": "rim/22.json",
+				"set": true
+			},
+			"caliper": {
+				"choices": [
+					"22/caliper.json"
+				],
+				"material": "steel",
+				"set": true,
+				"previews": false
+			}
+		}
+	};
+
+/***/ },
+/* 18 */
+/***/ function(module, exports) {
+
+	module.exports = {
+		"a3": {
+			"wheels": [
+				"736.422",
+				"-1329.582",
+				"331.817"
+			]
+		},
+		"a4": {
+			"wheels": [
+				"730.418",
+				"-1394.082",
+				"336.3"
+			]
+		},
+		"a5": {
+			"wheels": [
+				"816.873",
+				"-1460.528",
+				"350.249"
+			]
+		},
+		"atenza": {
+			"wheels": [
+				"738.38",
+				"-1431.059",
+				"338.748"
+			]
+		},
+		"ats": {
+			"wheels": [
+				"776.263",
+				"-1432.452",
+				"327.842"
+			]
+		},
+		"beetle": {
+			"wheels": [
+				"766.508",
+				"-1275.625",
+				"356.254"
+			]
+		},
+		"bmw3": {
+			"wheels": [
+				"775.12",
+				"-1418.705",
+				"327.243"
+			]
+		},
+		"bmw5": {
+			"wheels": [
+				"831.989",
+				"-1532.815",
+				"342.989"
+			]
+		},
+		"c": {
+			"wheels": [
+				"756.639",
+				"-1400.461",
+				"343.894"
+			]
+		},
+		"camry": {
+			"wheels": [
+				"774.496",
+				"-1388.851",
+				"348.419"
+			]
+		},
+		"cayenne": {
+			"wheels": [
+				"734",
+				"-1324",
+				"345.915"
+			]
+		},
+		"cayenne2015": {
+			"wheels": [
+				"732",
+				"-1350",
+				"357.73"
+			]
+		},
+		"cc": {
+			"wheels": [
+				"808.478",
+				"-1420.004",
+				"345.549"
+			]
+		},
+		"civic": {
+			"wheels": [
+				"742.424",
+				"-1332.752",
+				"321.69"
+			]
+		},
+		"cla": {
+			"wheels": [
+				"746.536",
+				"-1354.614",
+				"350.734"
+			]
+		},
+		"cooper": {
+			"wheels": [
+				"673.694",
+				"-1256.061",
+				"305.805"
+			]
+		},
+		"countryman": {
+			"wheels": [
+				"747.614",
+				"-1329.641",
+				"345.13"
+			]
+		},
+		"coupe": {
+			"wheels": [
+				"773.216",
+				"-1403.756",
+				"327.123"
+			]
+		},
+		"cruze": {
+			"wheels": [
+				"752",
+				"-1330",
+				"324.45"
+			]
+		},
+		"ct": {
+			"wheels": [
+				"770.334",
+				"-1326.263",
+				"345.806"
+			]
+		},
+		"cts": {
+			"wheels": [
+				"753",
+				"-1416",
+				"337.305"
+			]
+		},
+		"e": {
+			"wheels": [
+				"759.196",
+				"-1494.826",
+				"347.319"
+			]
+		},
+		"evoque": {
+			"wheels": [
+				"800.417",
+				"-1344.44",
+				"378.645"
+			]
+		},
+		"focus": {
+			"wheels": [
+				"758.956",
+				"-1317.675",
+				"324.804"
+			]
+		},
+		"ghibili": {
+			"wheels": [
+				"822.03",
+				"-1509.246",
+				"359.798"
+			]
+		},
+		"golf": {
+			"wheels": [
+				"746",
+				"-1332",
+				"337.611"
+			]
+		},
+		"gtr": {
+			"wheels": [
+				"815",
+				"-1392",
+				"356.141"
+			]
+		},
+		"is": {
+			"wheels": [
+				"798.636",
+				"-1411.637",
+				"324.534"
+			]
+		},
+		"k5": {
+			"wheels": [
+				"843.593",
+				"-1465.63",
+				"345.7"
+			]
+		},
+		"lancer": {
+			"wheels": [
+				"785",
+				"-1345",
+				"336.065"
+			]
+		},
+		"macan": {
+			"wheels": [
+				"772.291",
+				"-1381.97",
+				"352.19"
+			]
+		},
+		"malibu": {
+			"wheels": [
+				"805.755",
+				"-1394.667",
+				"336.344"
+			]
+		},
+		"mazda6": {
+			"wheels": [
+				"757.196",
+				"-1322.401",
+				"322.851"
+			]
+		},
+		"mondeo": {
+			"wheels": [
+				"775",
+				"-1450",
+				"339.677"
+			]
+		},
+		"panamera": {
+			"wheels": [
+				"802.701",
+				"-1502.501",
+				"343.811"
+			]
+		},
+		"q50l": {
+			"wheels": [
+				"782.863",
+				"-1431.933",
+				"333.964"
+			]
+		},
+		"regal": {
+			"wheels": [
+				"799.26",
+				"-1381.623",
+				"371.313"
+			]
+		},
+		"reiz": {
+			"wheels": [
+				"811.963",
+				"-1476.461",
+				"339.088"
+			]
+		},
+		"scirocco": {
+			"wheels": [
+				"764.973",
+				"-1291.385",
+				"333.317"
+			]
+		},
+		"smart": {
+			"wheels": [
+				"725",
+				"-980",
+				"294.163"
+			]
+		},
+		"sonata": {
+			"wheels": [
+				"792.394",
+				"-1410.482",
+				"340.437"
+			]
+		},
+		"spirior": {
+			"wheels": [
+				"780",
+				"-1390.44",
+				"339.934"
+			]
+		},
+		"tt": {
+			"wheels": [
+				"793.971",
+				"-1230.739",
+				"326.777"
+			]
+		},
+		"xf": {
+			"wheels": [
+				"781.164",
+				"-1496.983",
+				"358.453"
+			]
+		},
+		"xj": {
+			"wheels": [
+				"780",
+				"-1433",
+				"341.308"
+			]
+		}
+	};
+
+/***/ },
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
+	var THREE = window.THREE = __webpack_require__(15);
+
+	__webpack_require__(20);
+
+	var zoneRender = module.exports = new THREE.WebGLRenderer({
+	  canvas: document.querySelector('#zone'),
+	  antialias: true
+	});
+	zoneRender.shadowMap.enabled = true;
+	zoneRender.shadowMap.soft = true;
+	zoneRender.shadowMap.type = THREE.PCFSoftShadowMap;
+	zoneRender.physicallyCorrectLights = true;
+	var setSize = function setSize() {
+	  zoneRender.setSize(window.innerWidth, window.innerHeight);
+	};
+
+	var stats = __webpack_require__(26);
+	var controller = __webpack_require__(28);
+	var camera = __webpack_require__(35);
+	var raycast = __webpack_require__(36);
+	var zone = window.scene = __webpack_require__(43);
+
+	window.addEventListener('resize', setSize);
+	setSize();
+
+	var render = function render() {
+	  stats.begin();
+	  controller.update();
+	  raycast();
+	  zoneRender.render(zone, camera);
+	  stats.end();
+	  window.requestAnimationFrame(render);
+	};
+	window.requestAnimationFrame(render);
+
+/***/ },
+/* 20 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _defineProperties = __webpack_require__(21);
+
+	var _defineProperties2 = _interopRequireDefault(_defineProperties);
+
+	var _create = __webpack_require__(24);
+
+	var _create2 = _interopRequireDefault(_create);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	/**
+	 * @author qiao / https://github.com/qiao
+	 * @author mrdoob / http://mrdoob.com
+	 * @author alteredq / http://alteredqualia.com/
+	 * @author WestLangley / http://github.com/WestLangley
+	 * @author erich666 / http://erichaines.com
+	 */
+
+	// jscs: disable
+
+	var THREE = __webpack_require__(15);
+
+	(function () {
+
+	  function OrbitConstraint(object) {
+
+	    this.object = object;
+
+	    // "target" sets the location of focus, where the object orbits around
+	    // and where it pans with respect to.
+	    this.target = new THREE.Vector3();
+
+	    // Limits to how far you can dolly in and out ( PerspectiveCamera only )
+	    this.minDistance = 0;
+	    this.maxDistance = Infinity;
+
+	    // Limits to how far you can zoom in and out ( OrthographicCamera only )
+	    this.minZoom = 0;
+	    this.maxZoom = Infinity;
+
+	    // How far you can orbit vertically, upper and lower limits.
+	    // Range is 0 to Math.PI radians.
+	    this.minPolarAngle = 0; // radians
+	    this.maxPolarAngle = Math.PI; // radians
+
+	    // How far you can orbit horizontally, upper and lower limits.
+	    // If set, must be a sub-interval of the interval [ - Math.PI, Math.PI ].
+	    this.minAzimuthAngle = -Infinity; // radians
+	    this.maxAzimuthAngle = Infinity; // radians
+
+	    // Set to true to enable damping (inertia)
+	    // If damping is enabled, you must call controls.update() in your animation loop
+	    this.enableDamping = false;
+	    this.dampingFactor = 0.25;
+
+	    ////////////
+	    // internals
+
+	    var scope = this;
+
+	    var EPS = 0.000001;
+
+	    // Current position in spherical coordinate system.
+	    var theta;
+	    var phi;
+
+	    // Pending changes
+	    var phiDelta = 0;
+	    var thetaDelta = 0;
+	    var scale = 1;
+	    var panOffset = new THREE.Vector3();
+	    var zoomChanged = false;
+
+	    // API
+
+	    this.getPolarAngle = function () {
+
+	      return phi;
+	    };
+
+	    this.getAzimuthalAngle = function () {
+
+	      return theta;
+	    };
+
+	    this.rotateLeft = function (angle) {
+
+	      thetaDelta -= angle;
+	    };
+
+	    this.rotateUp = function (angle) {
+
+	      phiDelta -= angle;
+	    };
+
+	    // pass in distance in world space to move left
+	    this.panLeft = function () {
+
+	      var v = new THREE.Vector3();
+
+	      return function panLeft(distance) {
+
+	        var te = this.object.matrix.elements;
+
+	        // get X column of matrix
+	        v.set(te[0], te[1], te[2]);
+	        v.multiplyScalar(-distance);
+
+	        panOffset.add(v);
+	      };
+	    }();
+
+	    // pass in distance in world space to move up
+	    this.panUp = function () {
+
+	      var v = new THREE.Vector3();
+
+	      return function panUp(distance) {
+
+	        var te = this.object.matrix.elements;
+
+	        // get Y column of matrix
+	        v.set(te[4], te[5], te[6]);
+	        v.multiplyScalar(distance);
+
+	        panOffset.add(v);
+	      };
+	    }();
+
+	    // pass in x,y of change desired in pixel space,
+	    // right and down are positive
+	    this.pan = function (deltaX, deltaY, screenWidth, screenHeight) {
+
+	      if (scope.object instanceof THREE.PerspectiveCamera) {
+
+	        // perspective
+	        var position = scope.object.position;
+	        var offset = position.clone().sub(scope.target);
+	        var targetDistance = offset.length();
+
+	        // half of the fov is center to top of screen
+	        targetDistance *= Math.tan(scope.object.fov / 2 * Math.PI / 180.0);
+
+	        // we actually don't use screenWidth, since perspective camera is fixed to screen height
+	        scope.panLeft(2 * deltaX * targetDistance / screenHeight);
+	        scope.panUp(2 * deltaY * targetDistance / screenHeight);
+	      } else if (scope.object instanceof THREE.OrthographicCamera) {
+
+	        // orthographic
+	        scope.panLeft(deltaX * (scope.object.right - scope.object.left) / screenWidth);
+	        scope.panUp(deltaY * (scope.object.top - scope.object.bottom) / screenHeight);
+	      } else {
+
+	        // camera neither orthographic or perspective
+	        console.warn('WARNING: OrbitControls.js encountered an unknown camera type - pan disabled.');
+	      }
+	    };
+
+	    this.dollyIn = function (dollyScale) {
+
+	      if (scope.object instanceof THREE.PerspectiveCamera) {
+
+	        scale /= dollyScale;
+	      } else if (scope.object instanceof THREE.OrthographicCamera) {
+
+	        scope.object.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.object.zoom * dollyScale));
+	        scope.object.updateProjectionMatrix();
+	        zoomChanged = true;
+	      } else {
+
+	        console.warn('WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.');
+	      }
+	    };
+
+	    this.dollyOut = function (dollyScale) {
+
+	      if (scope.object instanceof THREE.PerspectiveCamera) {
+
+	        scale *= dollyScale;
+	      } else if (scope.object instanceof THREE.OrthographicCamera) {
+
+	        scope.object.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.object.zoom / dollyScale));
+	        scope.object.updateProjectionMatrix();
+	        zoomChanged = true;
+	      } else {
+
+	        console.warn('WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.');
+	      }
+	    };
+
+	    this.update = function () {
+
+	      var offset = new THREE.Vector3();
+
+	      // so camera.up is the orbit axis
+	      var quat = new THREE.Quaternion().setFromUnitVectors(object.up, new THREE.Vector3(0, 1, 0));
+	      var quatInverse = quat.clone().inverse();
+
+	      var lastPosition = new THREE.Vector3();
+	      var lastQuaternion = new THREE.Quaternion();
+
+	      return function () {
+
+	        var position = this.object.position;
+
+	        offset.copy(position).sub(this.target);
+
+	        // rotate offset to "y-axis-is-up" space
+	        offset.applyQuaternion(quat);
+
+	        // angle from z-axis around y-axis
+
+	        theta = Math.atan2(offset.x, offset.z);
+
+	        // angle from y-axis
+
+	        phi = Math.atan2(Math.sqrt(offset.x * offset.x + offset.z * offset.z), offset.y);
+
+	        theta += thetaDelta;
+	        phi += phiDelta;
+
+	        // restrict theta to be between desired limits
+	        theta = Math.max(this.minAzimuthAngle, Math.min(this.maxAzimuthAngle, theta));
+
+	        // restrict phi to be between desired limits
+	        phi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, phi));
+
+	        // restrict phi to be betwee EPS and PI-EPS
+	        phi = Math.max(EPS, Math.min(Math.PI - EPS, phi));
+
+	        var radius = offset.length() * scale;
+
+	        // restrict radius to be between desired limits
+	        radius = Math.max(this.minDistance, Math.min(this.maxDistance, radius));
+
+	        // move target to panned location
+	        this.target.add(panOffset);
+
+	        offset.x = radius * Math.sin(phi) * Math.sin(theta);
+	        offset.y = radius * Math.cos(phi);
+	        offset.z = radius * Math.sin(phi) * Math.cos(theta);
+
+	        // rotate offset back to "camera-up-vector-is-up" space
+	        offset.applyQuaternion(quatInverse);
+
+	        position.copy(this.target).add(offset);
+
+	        this.object.lookAt(this.target);
+
+	        if (this.enableDamping === true) {
+
+	          thetaDelta *= 1 - this.dampingFactor;
+	          phiDelta *= 1 - this.dampingFactor;
+	        } else {
+
+	          thetaDelta = 0;
+	          phiDelta = 0;
+	        }
+
+	        scale = 1;
+	        panOffset.set(0, 0, 0);
+
+	        // update condition is:
+	        // min(camera displacement, camera rotation in radians)^2 > EPS
+	        // using small-angle approximation cos(x/2) = 1 - x^2 / 8
+
+	        if (zoomChanged || lastPosition.distanceToSquared(this.object.position) > EPS || 8 * (1 - lastQuaternion.dot(this.object.quaternion)) > EPS) {
+
+	          lastPosition.copy(this.object.position);
+	          lastQuaternion.copy(this.object.quaternion);
+	          zoomChanged = false;
+
+	          return true;
+	        }
+
+	        return false;
+	      };
+	    }();
+	  };
+
+	  // This set of controls performs orbiting, dollying (zooming), and panning. It maintains
+	  // the "up" direction as +Y, unlike the TrackballControls. Touch on tablet and phones is
+	  // supported.
+	  //
+	  //    Orbit - left mouse / touch: one finger move
+	  //    Zoom - middle mouse, or mousewheel / touch: two finger spread or squish
+	  //    Pan - right mouse, or arrow keys / touch: three finter swipe
+
+	  THREE.OrbitControls = function (object, domElement) {
+
+	    var constraint = new OrbitConstraint(object);
+
+	    this.domElement = domElement !== undefined ? domElement : document;
+
+	    // API
+
+	    Object.defineProperty(this, 'constraint', {
+
+	      get: function get() {
+
+	        return constraint;
+	      }
+
+	    });
+
+	    this.getPolarAngle = function () {
+
+	      return constraint.getPolarAngle();
+	    };
+
+	    this.getAzimuthalAngle = function () {
+
+	      return constraint.getAzimuthalAngle();
+	    };
+
+	    // Set to false to disable this control
+	    this.enabled = true;
+
+	    // center is old, deprecated; use "target" instead
+	    this.center = this.target;
+
+	    // This option actually enables dollying in and out; left as "zoom" for
+	    // backwards compatibility.
+	    // Set to false to disable zooming
+	    this.enableZoom = true;
+	    this.zoomSpeed = 1.0;
+
+	    // Set to false to disable rotating
+	    this.enableRotate = true;
+	    this.rotateSpeed = 1.0;
+
+	    // Set to false to disable panning
+	    this.enablePan = true;
+	    this.keyPanSpeed = 7.0; // pixels moved per arrow key push
+
+	    // Set to true to automatically rotate around the target
+	    // If auto-rotate is enabled, you must call controls.update() in your animation loop
+	    this.autoRotate = false;
+	    this.autoRotateSpeed = 2.0; // 30 seconds per round when fps is 60
+
+	    // Set to false to disable use of the keys
+	    this.enableKeys = true;
+
+	    // The four arrow keys
+	    this.keys = { LEFT: 37, UP: 38, RIGHT: 39, BOTTOM: 40 };
+
+	    // Mouse buttons
+	    this.mouseButtons = { ORBIT: THREE.MOUSE.LEFT, ZOOM: THREE.MOUSE.MIDDLE, PAN: THREE.MOUSE.RIGHT };
+
+	    ////////////
+	    // internals
+
+	    var scope = this;
+
+	    var rotateStart = new THREE.Vector2();
+	    var rotateEnd = new THREE.Vector2();
+	    var rotateDelta = new THREE.Vector2();
+
+	    var panStart = new THREE.Vector2();
+	    var panEnd = new THREE.Vector2();
+	    var panDelta = new THREE.Vector2();
+
+	    var dollyStart = new THREE.Vector2();
+	    var dollyEnd = new THREE.Vector2();
+	    var dollyDelta = new THREE.Vector2();
+
+	    var STATE = { NONE: -1, ROTATE: 0, DOLLY: 1, PAN: 2, TOUCH_ROTATE: 3, TOUCH_DOLLY: 4, TOUCH_PAN: 5 };
+
+	    var state = STATE.NONE;
+
+	    // for reset
+
+	    this.target0 = this.target.clone();
+	    this.position0 = this.object.position.clone();
+	    this.zoom0 = this.object.zoom;
+
+	    // events
+
+	    var changeEvent = { type: 'change' };
+	    var startEvent = { type: 'start' };
+	    var endEvent = { type: 'end' };
+
+	    // pass in x,y of change desired in pixel space,
+	    // right and down are positive
+	    function pan(deltaX, deltaY) {
+
+	      var element = scope.domElement === document ? scope.domElement.body : scope.domElement;
+
+	      constraint.pan(deltaX, deltaY, element.clientWidth, element.clientHeight);
+	    }
+
+	    this.update = function () {
+
+	      if (this.autoRotate && state === STATE.NONE) {
+
+	        constraint.rotateLeft(getAutoRotationAngle());
+	      }
+
+	      if (constraint.update() === true) {
+
+	        this.dispatchEvent(changeEvent);
+	      }
+	    };
+
+	    this.reset = function () {
+
+	      state = STATE.NONE;
+
+	      this.target.copy(this.target0);
+	      this.object.position.copy(this.position0);
+	      this.object.zoom = this.zoom0;
+
+	      this.object.updateProjectionMatrix();
+	      this.dispatchEvent(changeEvent);
+
+	      this.update();
+	    };
+
+	    function getAutoRotationAngle() {
+
+	      return 2 * Math.PI / 60 / 60 * scope.autoRotateSpeed;
+	    }
+
+	    function getZoomScale() {
+
+	      return Math.pow(0.95, scope.zoomSpeed);
+	    }
+
+	    function onMouseDown(event) {
+
+	      if (scope.enabled === false) return;
+
+	      event.preventDefault();
+
+	      if (event.button === scope.mouseButtons.ORBIT) {
+
+	        if (scope.enableRotate === false) return;
+
+	        state = STATE.ROTATE;
+
+	        rotateStart.set(event.clientX, event.clientY);
+	      } else if (event.button === scope.mouseButtons.ZOOM) {
+
+	        if (scope.enableZoom === false) return;
+
+	        state = STATE.DOLLY;
+
+	        dollyStart.set(event.clientX, event.clientY);
+	      } else if (event.button === scope.mouseButtons.PAN) {
+
+	        if (scope.enablePan === false) return;
+
+	        state = STATE.PAN;
+
+	        panStart.set(event.clientX, event.clientY);
+	      }
+
+	      if (state !== STATE.NONE) {
+
+	        document.addEventListener('mousemove', onMouseMove, false);
+	        document.addEventListener('mouseup', onMouseUp, false);
+	        scope.dispatchEvent(startEvent);
+	      }
+	    }
+
+	    function onMouseMove(event) {
+
+	      if (scope.enabled === false) return;
+
+	      event.preventDefault();
+
+	      var element = scope.domElement === document ? scope.domElement.body : scope.domElement;
+
+	      if (state === STATE.ROTATE) {
+
+	        if (scope.enableRotate === false) return;
+
+	        rotateEnd.set(event.clientX, event.clientY);
+	        rotateDelta.subVectors(rotateEnd, rotateStart);
+
+	        // rotating across whole screen goes 360 degrees around
+	        constraint.rotateLeft(2 * Math.PI * rotateDelta.x / element.clientWidth * scope.rotateSpeed);
+
+	        // rotating up and down along whole screen attempts to go 360, but limited to 180
+	        constraint.rotateUp(2 * Math.PI * rotateDelta.y / element.clientHeight * scope.rotateSpeed);
+
+	        rotateStart.copy(rotateEnd);
+	      } else if (state === STATE.DOLLY) {
+
+	        if (scope.enableZoom === false) return;
+
+	        dollyEnd.set(event.clientX, event.clientY);
+	        dollyDelta.subVectors(dollyEnd, dollyStart);
+
+	        if (dollyDelta.y > 0) {
+
+	          constraint.dollyIn(getZoomScale());
+	        } else if (dollyDelta.y < 0) {
+
+	          constraint.dollyOut(getZoomScale());
+	        }
+
+	        dollyStart.copy(dollyEnd);
+	      } else if (state === STATE.PAN) {
+
+	        if (scope.enablePan === false) return;
+
+	        panEnd.set(event.clientX, event.clientY);
+	        panDelta.subVectors(panEnd, panStart);
+
+	        pan(panDelta.x, panDelta.y);
+
+	        panStart.copy(panEnd);
+	      }
+
+	      if (state !== STATE.NONE) scope.update();
+	    }
+
+	    function onMouseUp() /* event */{
+
+	      if (scope.enabled === false) return;
+
+	      document.removeEventListener('mousemove', onMouseMove, false);
+	      document.removeEventListener('mouseup', onMouseUp, false);
+	      scope.dispatchEvent(endEvent);
+	      state = STATE.NONE;
+	    }
+
+	    function onMouseWheel(event) {
+
+	      if (scope.enabled === false || scope.enableZoom === false || state !== STATE.NONE) return;
+
+	      event.preventDefault();
+	      event.stopPropagation();
+
+	      var delta = 0;
+
+	      if (event.wheelDelta !== undefined) {
+
+	        // WebKit / Opera / Explorer 9
+
+	        delta = event.wheelDelta;
+	      } else if (event.detail !== undefined) {
+
+	        // Firefox
+
+	        delta = -event.detail;
+	      }
+
+	      if (delta > 0) {
+
+	        constraint.dollyOut(getZoomScale());
+	      } else if (delta < 0) {
+
+	        constraint.dollyIn(getZoomScale());
+	      }
+
+	      scope.update();
+	      scope.dispatchEvent(startEvent);
+	      scope.dispatchEvent(endEvent);
+	    }
+
+	    function onKeyDown(event) {
+
+	      if (scope.enabled === false || scope.enableKeys === false || scope.enablePan === false) return;
+
+	      switch (event.keyCode) {
+
+	        case scope.keys.UP:
+	          pan(0, scope.keyPanSpeed);
+	          scope.update();
+	          break;
+
+	        case scope.keys.BOTTOM:
+	          pan(0, -scope.keyPanSpeed);
+	          scope.update();
+	          break;
+
+	        case scope.keys.LEFT:
+	          pan(scope.keyPanSpeed, 0);
+	          scope.update();
+	          break;
+
+	        case scope.keys.RIGHT:
+	          pan(-scope.keyPanSpeed, 0);
+	          scope.update();
+	          break;
+
+	      }
+	    }
+
+	    function touchstart(event) {
+
+	      if (scope.enabled === false) return;
+
+	      switch (event.touches.length) {
+
+	        case 1:
+	          // one-fingered touch: rotate
+
+	          if (scope.enableRotate === false) return;
+
+	          state = STATE.TOUCH_ROTATE;
+
+	          rotateStart.set(event.touches[0].pageX, event.touches[0].pageY);
+	          break;
+
+	        case 2:
+	          // two-fingered touch: dolly
+
+	          if (scope.enableZoom === false) return;
+
+	          state = STATE.TOUCH_DOLLY;
+
+	          var dx = event.touches[0].pageX - event.touches[1].pageX;
+	          var dy = event.touches[0].pageY - event.touches[1].pageY;
+	          var distance = Math.sqrt(dx * dx + dy * dy);
+	          dollyStart.set(0, distance);
+	          break;
+
+	        case 3:
+	          // three-fingered touch: pan
+
+	          if (scope.enablePan === false) return;
+
+	          state = STATE.TOUCH_PAN;
+
+	          panStart.set(event.touches[0].pageX, event.touches[0].pageY);
+	          break;
+
+	        default:
+
+	          state = STATE.NONE;
+
+	      }
+
+	      if (state !== STATE.NONE) scope.dispatchEvent(startEvent);
+	    }
+
+	    function touchmove(event) {
+
+	      if (scope.enabled === false) return;
+
+	      event.preventDefault();
+	      event.stopPropagation();
+
+	      var element = scope.domElement === document ? scope.domElement.body : scope.domElement;
+
+	      switch (event.touches.length) {
+
+	        case 1:
+	          // one-fingered touch: rotate
+
+	          if (scope.enableRotate === false) return;
+	          if (state !== STATE.TOUCH_ROTATE) return;
+
+	          rotateEnd.set(event.touches[0].pageX, event.touches[0].pageY);
+	          rotateDelta.subVectors(rotateEnd, rotateStart);
+
+	          // rotating across whole screen goes 360 degrees around
+	          constraint.rotateLeft(2 * Math.PI * rotateDelta.x / element.clientWidth * scope.rotateSpeed);
+	          // rotating up and down along whole screen attempts to go 360, but limited to 180
+	          constraint.rotateUp(2 * Math.PI * rotateDelta.y / element.clientHeight * scope.rotateSpeed);
+
+	          rotateStart.copy(rotateEnd);
+
+	          scope.update();
+	          break;
+
+	        case 2:
+	          // two-fingered touch: dolly
+
+	          if (scope.enableZoom === false) return;
+	          if (state !== STATE.TOUCH_DOLLY) return;
+
+	          var dx = event.touches[0].pageX - event.touches[1].pageX;
+	          var dy = event.touches[0].pageY - event.touches[1].pageY;
+	          var distance = Math.sqrt(dx * dx + dy * dy);
+
+	          dollyEnd.set(0, distance);
+	          dollyDelta.subVectors(dollyEnd, dollyStart);
+
+	          if (dollyDelta.y > 0) {
+
+	            constraint.dollyOut(getZoomScale());
+	          } else if (dollyDelta.y < 0) {
+
+	            constraint.dollyIn(getZoomScale());
+	          }
+
+	          dollyStart.copy(dollyEnd);
+
+	          scope.update();
+	          break;
+
+	        case 3:
+	          // three-fingered touch: pan
+
+	          if (scope.enablePan === false) return;
+	          if (state !== STATE.TOUCH_PAN) return;
+
+	          panEnd.set(event.touches[0].pageX, event.touches[0].pageY);
+	          panDelta.subVectors(panEnd, panStart);
+
+	          pan(panDelta.x, panDelta.y);
+
+	          panStart.copy(panEnd);
+
+	          scope.update();
+	          break;
+
+	        default:
+
+	          state = STATE.NONE;
+
+	      }
+	    }
+
+	    function touchend() /* event */{
+
+	      if (scope.enabled === false) return;
+
+	      scope.dispatchEvent(endEvent);
+	      state = STATE.NONE;
+	    }
+
+	    function contextmenu(event) {
+
+	      event.preventDefault();
+	    }
+
+	    this.dispose = function () {
+
+	      this.domElement.removeEventListener('contextmenu', contextmenu, false);
+	      this.domElement.removeEventListener('mousedown', onMouseDown, false);
+	      this.domElement.removeEventListener('mousewheel', onMouseWheel, false);
+	      this.domElement.removeEventListener('DOMMouseScroll', onMouseWheel, false); // firefox
+
+	      this.domElement.removeEventListener('touchstart', touchstart, false);
+	      this.domElement.removeEventListener('touchend', touchend, false);
+	      this.domElement.removeEventListener('touchmove', touchmove, false);
+
+	      document.removeEventListener('mousemove', onMouseMove, false);
+	      document.removeEventListener('mouseup', onMouseUp, false);
+
+	      window.removeEventListener('keydown', onKeyDown, false);
+	    };
+
+	    this.domElement.addEventListener('contextmenu', contextmenu, false);
+
+	    this.domElement.addEventListener('mousedown', onMouseDown, false);
+	    this.domElement.addEventListener('mousewheel', onMouseWheel, false);
+	    this.domElement.addEventListener('DOMMouseScroll', onMouseWheel, false); // firefox
+
+	    this.domElement.addEventListener('touchstart', touchstart, false);
+	    this.domElement.addEventListener('touchend', touchend, false);
+	    this.domElement.addEventListener('touchmove', touchmove, false);
+
+	    window.addEventListener('keydown', onKeyDown, false);
+
+	    // force an update at start
+	    this.update();
+	  };
+
+	  THREE.OrbitControls.prototype = (0, _create2.default)(THREE.EventDispatcher.prototype);
+	  THREE.OrbitControls.prototype.constructor = THREE.OrbitControls;
+
+	  (0, _defineProperties2.default)(THREE.OrbitControls.prototype, {
+
+	    object: {
+
+	      get: function get() {
+
+	        return this.constraint.object;
+	      }
+
+	    },
+
+	    target: {
+
+	      get: function get() {
+
+	        return this.constraint.target;
+	      },
+
+	      set: function set(value) {
+
+	        console.warn('THREE.OrbitControls: target is now immutable. Use target.set() instead.');
+	        this.constraint.target.copy(value);
+	      }
+
+	    },
+
+	    minDistance: {
+
+	      get: function get() {
+
+	        return this.constraint.minDistance;
+	      },
+
+	      set: function set(value) {
+
+	        this.constraint.minDistance = value;
+	      }
+
+	    },
+
+	    maxDistance: {
+
+	      get: function get() {
+
+	        return this.constraint.maxDistance;
+	      },
+
+	      set: function set(value) {
+
+	        this.constraint.maxDistance = value;
+	      }
+
+	    },
+
+	    minZoom: {
+
+	      get: function get() {
+
+	        return this.constraint.minZoom;
+	      },
+
+	      set: function set(value) {
+
+	        this.constraint.minZoom = value;
+	      }
+
+	    },
+
+	    maxZoom: {
+
+	      get: function get() {
+
+	        return this.constraint.maxZoom;
+	      },
+
+	      set: function set(value) {
+
+	        this.constraint.maxZoom = value;
+	      }
+
+	    },
+
+	    minPolarAngle: {
+
+	      get: function get() {
+
+	        return this.constraint.minPolarAngle;
+	      },
+
+	      set: function set(value) {
+
+	        this.constraint.minPolarAngle = value;
+	      }
+
+	    },
+
+	    maxPolarAngle: {
+
+	      get: function get() {
+
+	        return this.constraint.maxPolarAngle;
+	      },
+
+	      set: function set(value) {
+
+	        this.constraint.maxPolarAngle = value;
+	      }
+
+	    },
+
+	    minAzimuthAngle: {
+
+	      get: function get() {
+
+	        return this.constraint.minAzimuthAngle;
+	      },
+
+	      set: function set(value) {
+
+	        this.constraint.minAzimuthAngle = value;
+	      }
+
+	    },
+
+	    maxAzimuthAngle: {
+
+	      get: function get() {
+
+	        return this.constraint.maxAzimuthAngle;
+	      },
+
+	      set: function set(value) {
+
+	        this.constraint.maxAzimuthAngle = value;
+	      }
+
+	    },
+
+	    enableDamping: {
+
+	      get: function get() {
+
+	        return this.constraint.enableDamping;
+	      },
+
+	      set: function set(value) {
+
+	        this.constraint.enableDamping = value;
+	      }
+
+	    },
+
+	    dampingFactor: {
+
+	      get: function get() {
+
+	        return this.constraint.dampingFactor;
+	      },
+
+	      set: function set(value) {
+
+	        this.constraint.dampingFactor = value;
+	      }
+
+	    },
+
+	    // backward compatibility
+
+	    noZoom: {
+
+	      get: function get() {
+
+	        console.warn('THREE.OrbitControls: .noZoom has been deprecated. Use .enableZoom instead.');
+	        return !this.enableZoom;
+	      },
+
+	      set: function set(value) {
+
+	        console.warn('THREE.OrbitControls: .noZoom has been deprecated. Use .enableZoom instead.');
+	        this.enableZoom = !value;
+	      }
+
+	    },
+
+	    noRotate: {
+
+	      get: function get() {
+
+	        console.warn('THREE.OrbitControls: .noRotate has been deprecated. Use .enableRotate instead.');
+	        return !this.enableRotate;
+	      },
+
+	      set: function set(value) {
+
+	        console.warn('THREE.OrbitControls: .noRotate has been deprecated. Use .enableRotate instead.');
+	        this.enableRotate = !value;
+	      }
+
+	    },
+
+	    noPan: {
+
+	      get: function get() {
+
+	        console.warn('THREE.OrbitControls: .noPan has been deprecated. Use .enablePan instead.');
+	        return !this.enablePan;
+	      },
+
+	      set: function set(value) {
+
+	        console.warn('THREE.OrbitControls: .noPan has been deprecated. Use .enablePan instead.');
+	        this.enablePan = !value;
+	      }
+
+	    },
+
+	    noKeys: {
+
+	      get: function get() {
+
+	        console.warn('THREE.OrbitControls: .noKeys has been deprecated. Use .enableKeys instead.');
+	        return !this.enableKeys;
+	      },
+
+	      set: function set(value) {
+
+	        console.warn('THREE.OrbitControls: .noKeys has been deprecated. Use .enableKeys instead.');
+	        this.enableKeys = !value;
+	      }
+
+	    },
+
+	    staticMoving: {
+
+	      get: function get() {
+
+	        console.warn('THREE.OrbitControls: .staticMoving has been deprecated. Use .enableDamping instead.');
+	        return !this.constraint.enableDamping;
+	      },
+
+	      set: function set(value) {
+
+	        console.warn('THREE.OrbitControls: .staticMoving has been deprecated. Use .enableDamping instead.');
+	        this.constraint.enableDamping = !value;
+	      }
+
+	    },
+
+	    dynamicDampingFactor: {
+
+	      get: function get() {
+
+	        console.warn('THREE.OrbitControls: .dynamicDampingFactor has been renamed. Use .dampingFactor instead.');
+	        return this.constraint.dampingFactor;
+	      },
+
+	      set: function set(value) {
+
+	        console.warn('THREE.OrbitControls: .dynamicDampingFactor has been renamed. Use .dampingFactor instead.');
+	        this.constraint.dampingFactor = value;
+	      }
+
+	    }
+
+	  });
+	})();
+
+/***/ },
+/* 21 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = { "default": __webpack_require__(22), __esModule: true };
+
+/***/ },
+/* 22 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var $ = __webpack_require__(23);
+	module.exports = function defineProperties(T, D){
+	  return $.setDescs(T, D);
+	};
+
+/***/ },
+/* 23 */
+/***/ function(module, exports) {
+
+	var $Object = Object;
+	module.exports = {
+	  create:     $Object.create,
+	  getProto:   $Object.getPrototypeOf,
+	  isEnum:     {}.propertyIsEnumerable,
+	  getDesc:    $Object.getOwnPropertyDescriptor,
+	  setDesc:    $Object.defineProperty,
+	  setDescs:   $Object.defineProperties,
+	  getKeys:    $Object.keys,
+	  getNames:   $Object.getOwnPropertyNames,
+	  getSymbols: $Object.getOwnPropertySymbols,
+	  each:       [].forEach
+	};
+
+/***/ },
+/* 24 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = { "default": __webpack_require__(25), __esModule: true };
+
+/***/ },
+/* 25 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var $ = __webpack_require__(23);
+	module.exports = function create(P, D){
+	  return $.create(P, D);
+	};
+
+/***/ },
+/* 26 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var Stats = __webpack_require__(27);
+
+	var stats = module.exports = new Stats();
+
+	stats.setMode(0);
+	stats.id = 'stats';
+
+	document.body.appendChild(stats.domElement);
+
+/***/ },
+/* 27 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/**
+	 * @author mrdoob / http://mrdoob.com/
+	 */
+
+	var Stats = function () {
+
+		var startTime = Date.now(), prevTime = startTime;
+		var ms = 0, msMin = Infinity, msMax = 0;
+		var fps = 0, fpsMin = Infinity, fpsMax = 0;
+		var frames = 0, mode = 0;
+
+		var container = document.createElement( 'div' );
+		container.id = 'stats';
+		container.addEventListener( 'mousedown', function ( event ) { event.preventDefault(); setMode( ++ mode % 2 ) }, false );
+		container.style.cssText = 'width:80px;opacity:0.9;cursor:pointer';
+
+		var fpsDiv = document.createElement( 'div' );
+		fpsDiv.id = 'fps';
+		fpsDiv.style.cssText = 'padding:0 0 3px 3px;text-align:left;background-color:#002';
+		container.appendChild( fpsDiv );
+
+		var fpsText = document.createElement( 'div' );
+		fpsText.id = 'fpsText';
+		fpsText.style.cssText = 'color:#0ff;font-family:Helvetica,Arial,sans-serif;font-size:9px;font-weight:bold;line-height:15px';
+		fpsText.innerHTML = 'FPS';
+		fpsDiv.appendChild( fpsText );
+
+		var fpsGraph = document.createElement( 'div' );
+		fpsGraph.id = 'fpsGraph';
+		fpsGraph.style.cssText = 'position:relative;width:74px;height:30px;background-color:#0ff';
+		fpsDiv.appendChild( fpsGraph );
+
+		while ( fpsGraph.children.length < 74 ) {
+
+			var bar = document.createElement( 'span' );
+			bar.style.cssText = 'width:1px;height:30px;float:left;background-color:#113';
+			fpsGraph.appendChild( bar );
+
+		}
+
+		var msDiv = document.createElement( 'div' );
+		msDiv.id = 'ms';
+		msDiv.style.cssText = 'padding:0 0 3px 3px;text-align:left;background-color:#020;display:none';
+		container.appendChild( msDiv );
+
+		var msText = document.createElement( 'div' );
+		msText.id = 'msText';
+		msText.style.cssText = 'color:#0f0;font-family:Helvetica,Arial,sans-serif;font-size:9px;font-weight:bold;line-height:15px';
+		msText.innerHTML = 'MS';
+		msDiv.appendChild( msText );
+
+		var msGraph = document.createElement( 'div' );
+		msGraph.id = 'msGraph';
+		msGraph.style.cssText = 'position:relative;width:74px;height:30px;background-color:#0f0';
+		msDiv.appendChild( msGraph );
+
+		while ( msGraph.children.length < 74 ) {
+
+			var bar = document.createElement( 'span' );
+			bar.style.cssText = 'width:1px;height:30px;float:left;background-color:#131';
+			msGraph.appendChild( bar );
+
+		}
+
+		var setMode = function ( value ) {
+
+			mode = value;
+
+			switch ( mode ) {
+
+				case 0:
+					fpsDiv.style.display = 'block';
+					msDiv.style.display = 'none';
+					break;
+				case 1:
+					fpsDiv.style.display = 'none';
+					msDiv.style.display = 'block';
+					break;
+			}
+
+		};
+
+		var updateGraph = function ( dom, value ) {
+
+			var child = dom.appendChild( dom.firstChild );
+			child.style.height = value + 'px';
+
+		};
+
+		return {
+
+			REVISION: 12,
+
+			domElement: container,
+
+			setMode: setMode,
+
+			begin: function () {
+
+				startTime = Date.now();
+
+			},
+
+			end: function () {
+
+				var time = Date.now();
+
+				ms = time - startTime;
+				msMin = Math.min( msMin, ms );
+				msMax = Math.max( msMax, ms );
+
+				msText.textContent = ms + ' MS (' + msMin + '-' + msMax + ')';
+				updateGraph( msGraph, Math.min( 30, 30 - ( ms / 200 ) * 30 ) );
+
+				frames ++;
+
+				if ( time > prevTime + 1000 ) {
+
+					fps = Math.round( ( frames * 1000 ) / ( time - prevTime ) );
+					fpsMin = Math.min( fpsMin, fps );
+					fpsMax = Math.max( fpsMax, fps );
+
+					fpsText.textContent = fps + ' FPS (' + fpsMin + '-' + fpsMax + ')';
+					updateGraph( fpsGraph, Math.min( 30, 30 - ( fps / 100 ) * 30 ) );
+
+					prevTime = time;
+					frames = 0;
+
+				}
+
+				return time;
+
+			},
+
+			update: function () {
+
+				startTime = this.end();
+
+			}
+
+		}
+
+	};
+
+	if ( true ) {
+
+		module.exports = Stats;
+
+	}
+
+/***/ },
+/* 28 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _assign = __webpack_require__(29);
+
+	var _assign2 = _interopRequireDefault(_assign);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	var THREE = __webpack_require__(15);
+
+	var camera = __webpack_require__(35);
+	var store = __webpack_require__(2);
+	var raycast = __webpack_require__(36);
+	var controls = module.exports = new THREE.OrbitControls(camera);
+
+	(0, _assign2.default)(controls, {
+
+	  enableDamping: true,
+	  dampingFactor: 0.2,
+
+	  rotateSpeed: 0.2,
+	  autoRotateSpeed: -0.3,
+
+	  // enablePan: false,
+	  enableKeys: false,
+
+	  minPolarAngle: Math.PI / 180 * 50,
+	  maxPolarAngle: Math.PI / 180 * 80,
+	  autoRotate: false
+	});
+
+	controls.target.set(0, 1000, 0);
+
+	document.addEventListener('mousemove', function (event) {
+	  raycast.mouse.x = event.clientX / window.innerWidth * 2 - 1;
+	  raycast.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+	});
+
+	document.addEventListener('click', function () {
+	  if (store.hoverEnabled) {
+	    store.currentPartName = store.hoverPartName;
+	  }
+	});
+
+/***/ },
+/* 29 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = { "default": __webpack_require__(30), __esModule: true };
+
+/***/ },
+/* 30 */
+/***/ function(module, exports, __webpack_require__) {
+
+	__webpack_require__(31);
+	module.exports = __webpack_require__(11).Object.assign;
+
+/***/ },
+/* 31 */
+/***/ function(module, exports, __webpack_require__) {
+
+	// 19.1.3.1 Object.assign(target, source)
+	var $export = __webpack_require__(9);
+
+	$export($export.S + $export.F, 'Object', {assign: __webpack_require__(32)});
+
+/***/ },
+/* 32 */
+/***/ function(module, exports, __webpack_require__) {
+
+	// 19.1.2.1 Object.assign(target, source, ...)
+	var $        = __webpack_require__(23)
+	  , toObject = __webpack_require__(6)
+	  , IObject  = __webpack_require__(33);
+
+	// should work with symbols and should have deterministic property order (V8 bug)
+	module.exports = __webpack_require__(14)(function(){
+	  var a = Object.assign
+	    , A = {}
+	    , B = {}
+	    , S = Symbol()
+	    , K = 'abcdefghijklmnopqrst';
+	  A[S] = 7;
+	  K.split('').forEach(function(k){ B[k] = k; });
+	  return a({}, A)[S] != 7 || Object.keys(a({}, B)).join('') != K;
+	}) ? function assign(target, source){ // eslint-disable-line no-unused-vars
+	  var T     = toObject(target)
+	    , $$    = arguments
+	    , $$len = $$.length
+	    , index = 1
+	    , getKeys    = $.getKeys
+	    , getSymbols = $.getSymbols
+	    , isEnum     = $.isEnum;
+	  while($$len > index){
+	    var S      = IObject($$[index++])
+	      , keys   = getSymbols ? getKeys(S).concat(getSymbols(S)) : getKeys(S)
+	      , length = keys.length
+	      , j      = 0
+	      , key;
+	    while(length > j)if(isEnum.call(S, key = keys[j++]))T[key] = S[key];
+	  }
+	  return T;
+	} : Object.assign;
+
+/***/ },
+/* 33 */
+/***/ function(module, exports, __webpack_require__) {
+
+	// fallback for non-array-like ES3 and non-enumerable old V8 strings
+	var cof = __webpack_require__(34);
+	module.exports = Object('z').propertyIsEnumerable(0) ? Object : function(it){
+	  return cof(it) == 'String' ? it.split('') : Object(it);
+	};
+
+/***/ },
+/* 34 */
+/***/ function(module, exports) {
+
+	var toString = {}.toString;
+
+	module.exports = function(it){
+	  return toString.call(it).slice(8, -1);
+	};
+
+/***/ },
+/* 35 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var THREE = __webpack_require__(15);
+
+	var camera = module.exports = new THREE.PerspectiveCamera(50, // Field of view
+	window.innerWidth / window.innerHeight, 1, 1e6);
+
+	camera.position.set(0, 1000, 10000);
+	window.addEventListener('resize', function () {
+	  camera.aspect = window.innerWidth / window.innerHeight;
+	  camera.updateProjectionMatrix();
+	});
+
+/***/ },
+/* 36 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var THREE = __webpack_require__(15);
+	var camera = __webpack_require__(35);
+	var area = __webpack_require__(37);
+	var store = __webpack_require__(2);
+	var raycaster = new THREE.Raycaster();
+
+	var hoverPartName = store.hoverPartName;
+
+	module.exports = function () {
+	  if (!store.hoverEnabled) {
+	    store.hoverPartName = '';
+	    return;
+	  }
+	  raycaster.setFromCamera(mouse, camera);
+	  var nearest = raycaster.intersectObject(area, true)[0];
+	  var targetHoverPartName = nearest != null ? nearest.object.name : '';
+	  if (hoverPartName !== targetHoverPartName) {
+	    store.hoverPartName = hoverPartName = targetHoverPartName;
+	  }
+	};
+
+	var mouse = module.exports.mouse = new THREE.Vector2();
+
+/***/ },
+/* 37 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var THREE = __webpack_require__(15);
+
+	var chassis = __webpack_require__(38);
+	var wheels = __webpack_require__(42);
+
+	var area = module.exports = window.area = new THREE.Object3D();
+	area.position.y = 200;
+	area.rotation.y = Math.PI * 45 / 180;
+
+	area.add(chassis, wheels);
+
+/***/ },
+/* 38 */
+>>>>>>> Stashed changes
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+<<<<<<< Updated upstream
 	var THREE = __webpack_require__(4);
 
 	var camera = module.exports = new THREE.PerspectiveCamera(50, // Field of view
@@ -51730,10 +65463,332 @@
 
 /***/ },
 /* 33 */
+=======
+	var THREE = __webpack_require__(15);
+	var store = __webpack_require__(2);
+
+	var chassis = module.exports = new THREE.Object3D();
+
+	var utils = __webpack_require__(39);
+
+	store.$watch('chassis.parts', function (parts) {
+	  // Dispose all mesh
+	  for (var mesh = chassis.children[0]; mesh != null; mesh = chassis.children[0]) {
+	    utils.dispose(mesh);
+	    chassis.remove(mesh);
+	  }
+
+	  for (var name in parts) {
+	    var part = parts[name];
+	    if (part.area && part.set) {
+	      var _mesh = new THREE.Mesh();
+	      _mesh.name = name;
+	      _mesh.material.visible = false;
+	      chassis.add(_mesh);
+
+	      utils.load(_mesh, 'chassis/' + part.area, false);
+	    }
+	  }
+	}, { immediate: true });
+
+	store.$watch('chassis.offsetY', function (offsetY) {
+	  return chassis.position.y = offsetY;
+	}, { immediate: true });
+
+/***/ },
+/* 39 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
+	var _assign = __webpack_require__(29);
+
+	var _assign2 = _interopRequireDefault(_assign);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	var Vue = __webpack_require__(1);
+	var THREE = __webpack_require__(15);
+
+	var reflection = __webpack_require__(40);
+	var materials = __webpack_require__(41);
+
+	var loader = new THREE.JSONLoader();
+
+	var toTHREEColorObject = function toTHREEColorObject(color) {
+	  return new THREE.Color('hsl(' + color.h + ', ' + color.s + ', ' + color.l + ')');
+	};
+
+	var getPureMaterial = function getPureMaterial(mesh) {
+	  var materials = mesh.material.materials;
+
+	  if (materials == null) {
+	    return null;
+	  }
+
+	  for (var i = 0, l = materials.length; i < l; i++) {
+	    var material = materials[i];
+	    if (material.map == null) {
+	      return material;
+	    }
+	  }
+
+	  return null;
+	};
+
+	var load = exports.load = function (mesh, file, includeMaterial, callback) {
+	  var apply = function apply(geometry, material) {
+	    (0, _assign2.default)(mesh, includeMaterial ? { geometry: geometry, material: material } : { geometry: geometry });
+
+	    if (typeof callback === 'function') {
+	      callback();
+	    }
+	  };
+
+	  if (file !== '') {
+	    loader.load(file, function (geometry, materials) {
+	      materials.forEach(function (material) {
+	        material.side = THREE.DoubleSide;
+	        if (material.name === 'mirror') {
+	          material.envMap = reflection;
+	        }
+	      });
+	      var material = new THREE.MeshFaceMaterial(materials);
+	      apply(geometry, material);
+	    });
+	  } else {
+	    // Hide the mesh
+	    setTimeout(function () {
+	      var material = new THREE.Material();
+	      material.visible = false;
+	      apply(new THREE.Geometry(), material);
+	    }, 0);
+	  }
+	};
+
+	var dispose = exports.dispose = function (mesh) {
+	  var disposeMaterial = function disposeMaterial(material) {
+	    if (material.envMap != null) {
+	      material.envMap.dispose();
+	    }
+	    if (material.map != null) {
+	      material.map.dispose();
+	    }
+	    material.dispose();
+	  };
+
+	  if (mesh.material != null) {
+	    if (mesh.material.materials) {
+	      mesh.material.materials.forEach(disposeMaterial);
+	    } else {
+	      disposeMaterial(mesh.material);
+	    }
+	  }
+
+	  if (mesh.geometry != null) {
+	    mesh.geometry.dispose();
+	  }
+	};
+
+	exports.initVM = function (mesh, model, prefix) {
+	  var autoLoad = arguments.length <= 3 || arguments[3] === undefined ? false : arguments[3];
+	  return new Vue({
+	    // options
+	    mesh: mesh,
+	    material: null,
+
+	    data: model,
+	    watch: {
+	      color: {
+	        handler: 'setColor',
+	        deep: true
+	      },
+	      specular: {
+	        handler: 'setSpecular',
+	        deep: true
+	      },
+	      material: 'setMaterial',
+	      choice: 'setChoice'
+	    },
+	    methods: {
+	      setColor: function setColor(color) {
+	        var colorObject = toTHREEColorObject(color);
+	        var material = this.$options.material;
+	        if (material != null) {
+	          material.color = colorObject;
+	          if (this.material !== 'discolor') {
+	            material.specular = colorObject.clone();
+	          }
+	        }
+	      },
+	      setSpecular: function setSpecular(color) {
+	        var colorObject = toTHREEColorObject(color);
+	        var material = this.$options.material;
+	        material.specular = colorObject;
+	      },
+	      setMaterial: function setMaterial(materialStyle, oldMaterialStyle) {
+
+	        var materialFunc = materials[materialStyle];
+	        var material = this.$options.material;
+	        if (typeof materialFunc === 'function' && material != null) {
+	          materialFunc(material);
+	          material.needsUpdate = true;
+	        }
+	        if (materialStyle === 'discolor') {
+	          Vue.set(this, 'specular', (0, _assign2.default)({}, this.color));
+	        }
+	        if (oldMaterialStyle === 'discolor') {
+	          Vue.set(this, 'specular', (0, _assign2.default)({}, this.color));
+	        }
+	      },
+	      setChoice: function setChoice(choice) {
+	        var _this = this;
+
+	        var mesh = this.$options.mesh;
+
+	        dispose(mesh);
+	        this.$options.material = null;
+
+	        load(mesh, choice ? prefix + choice : '', true, function () {
+	          _this.$emit('load');
+	        });
+	      }
+	    },
+	    events: {
+	      load: function load() {
+	        this.$options.material = getPureMaterial(mesh);
+	        this.setColor(this.color);
+	        this.setMaterial(this.material);
+	      }
+	    },
+	    created: function created() {
+	      if (autoLoad) {
+	        this.setChoice(this.choice);
+	      } else {
+	        this.$emit('load');
+	      }
+	    }
+	  });
+	};
+
+	exports.hover = function (mesh, value) {
+	  var color = new THREE.Color(value ? '#666' : '#000');
+	  if (mesh != null && mesh.material && mesh.material.materials) {
+	    mesh.material.materials.forEach(function (material) {
+	      material.emissive = color;
+	    });
+	  }
+	};
+
+/***/ },
+/* 40 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var THREE = __webpack_require__(15);
+	var store = __webpack_require__(2);
+
+	var reflections = {};
+	var loader = new THREE.CubeTextureLoader()[('ground', 'garage', 'lab')].forEach(function (situation) {
+	  return reflections[situation] = loader.load([situation + '/px.jpg', situation + '/nx.jpg', situation + '/py.jpg', situation + '/ny.jpg', situation + '/pz.jpg', situation + '/nz.jpg']);
+	});
+
+	var reflection = module.exports = new THREE.CubeTexture();
+
+	store.$watch('situation', function (value) {
+	  reflection.copy(reflections[value]);
+	  reflection.needsUpdate = true;
+	}, { immediate: true });
+
+/***/ },
+/* 41 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _assign = __webpack_require__(29);
+
+	var _assign2 = _interopRequireDefault(_assign);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	var THREE = __webpack_require__(15);
+
+	var reflection = __webpack_require__(40);
+
+	var mattingMap = THREE.ImageUtils.loadTexture('bump/matting.jpg', THREE.CubeRefractionMapping);
+
+	mattingMap.wrapS = mattingMap.wrapT = THREE.MirroredRepeatWrapping;
+	mattingMap.repeat.set(2, 2);
+
+	var carbonMap = THREE.ImageUtils.loadTexture('bump/carbon.jpg', THREE.CubeRefractionMapping);
+	// carbonMap.mapping = THREE.CubeRefractionMapping
+	// carbonMap.anisotropy = 4;
+	// carbonMap.repeat.set( 10, 10 );
+	// carbonMap.offset.set( 0.001, 0.001 );
+	// carbonMap.wrapS = carbonMap.wrapT = THREE.RepeatWrapping
+	// carbonMap.format = THREE.RGBFormat
+
+	(0, _assign2.default)(exports, {
+	  matte: function matte(material) {
+	    material.envMap = null;
+	    material.bumpMap = null;
+	    material.reflectivity = 0;
+	    material.needUpdate = true;
+	  },
+	  normal: function normal(material) {
+	    material.envMap = null;
+	    material.bumpMap = null;
+	    material.reflectivity = 0.3;
+	  },
+	  electroplate: function electroplate(material) {
+	    material.envMap = reflection;
+	    material.bumpMap = null;
+	    material.reflectivity = 0.9;
+	  },
+	  matting: function matting(material) {
+	    material.envMap = reflection;
+	    material.bumpMap = mattingMap;
+	    material.bumpScale = 100;
+	    material.reflectivity = 0.1;
+	  },
+	  carbon: function carbon(material) {
+	    material.envMap = reflection;
+	    material.bumpMap = carbonMap;
+	    material.bumpScale = 100;
+	    material.reflectivity = 0.1;
+	  },
+	  drawbench: function drawbench(material) {
+	    material.envMap = reflection;
+	    material.bumpMap = null;
+	    material.reflectivity = 0.1;
+	  },
+	  discolor: function discolor(material) {
+	    material.envMap = reflection;
+	    material.bumpMap = null;
+	    material.reflectivity = 0.3;
+	  },
+	  steel: function steel(material) {
+	    material.envMap = reflection;
+	    material.bumpMap = null;
+	    material.reflectivity = 0.9;
+	  },
+	  glass: function glass(material) {
+	    material.envMap = null;
+	    material.bumpMap = null;
+	    material.reflectivity = 1;
+	  }
+	});
+
+/***/ },
+/* 42 */
+>>>>>>> Stashed changes
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+<<<<<<< Updated upstream
 	var _assign = __webpack_require__(15);
 
 	var _assign2 = _interopRequireDefault(_assign);
@@ -51944,10 +65999,206 @@
 
 /***/ },
 /* 35 */
+=======
+	var THREE = __webpack_require__(15);
+	var utils = __webpack_require__(39);
+	var store = __webpack_require__(2);
+
+	var wheels = module.exports = new THREE.Object3D();
+
+	wheels.add(new THREE.Object3D(), new THREE.Object3D(), new THREE.Object3D(), new THREE.Object3D());
+
+	wheels.children[2].rotation.y = Math.PI;
+	wheels.children[3].rotation.y = Math.PI;
+
+	store.$watch('wheels.parts', function (parts) {
+	  wheels.children.forEach(function (wheel) {
+	    for (var mesh = wheel.children[0]; mesh != null; mesh = wheel.children[0]) {
+	      utils.dispose(mesh);
+	      wheel.remove(mesh);
+	    }
+	  });
+
+	  var _loop = function _loop(name) {
+	    var part = parts[name];
+	    if (part.area) {
+	      (function () {
+	        var sampleMesh = wheels.children.reduce(function (first, wheel) {
+	          var mesh = new THREE.Mesh();
+	          mesh.name = name;
+	          mesh.material.visible = false;
+	          wheel.add(mesh);
+	          return first == null ? mesh : first;
+	        }, null);
+
+	        utils.load(sampleMesh, 'wheels/' + part.area, false, function () {
+	          wheels.children.forEach(function (wheel) {
+	            return wheel.getObjectByName(name).geometry = sampleMesh.geometry;
+	          });
+	        });
+	      })();
+	    }
+	  };
+
+	  for (var name in parts) {
+	    _loop(name);
+	  }
+	}, { immediate: true });
+
+	store.$watch('wheels.offsetX', function (offsetX) {
+	  return wheels.children.forEach(function (wheel, index) {
+	    wheel.position.x = index < 2 ? offsetX : -offsetX;
+	  });
+	}, { immediate: true });
+
+	store.$watch('wheels.offsetZ', function (offsetZ) {
+	  return wheels.children.forEach(function (wheel, index) {
+	    wheel.position.z = index % 2 ? offsetZ : -offsetZ;
+	  });
+	}, { immediate: true });
+
+/***/ },
+/* 43 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
+	var THREE = __webpack_require__(15);
+
+	var environment = __webpack_require__(44);
+	var buildings = __webpack_require__(47);
+	var streetlights = __webpack_require__(49);
+	// const area = require('./area')
+
+	var scene = module.exports = new THREE.Scene();
+	scene.add(environment, buildings, streetlights);
+
+/***/ },
+/* 44 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var THREE = __webpack_require__(15);
+
+	var environment = module.exports = new THREE.Object3D();
+
+	environment.add(__webpack_require__(45).floor, __webpack_require__(45).sky, __webpack_require__(46));
+
+/***/ },
+/* 45 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var THREE = __webpack_require__(15);
+	// const loader = new THREE.JSONLoader()
+	var store = __webpack_require__(2);
+
+	function createCubeMap(folderName) {
+
+	  var path = "../../../../dist/sky/" + folderName + "/";
+	  var format = '.jpg';
+	  var urls = [path + 'posx' + format, path + 'negx' + format, path + 'posy' + format, path + 'negy' + format, path + 'posz' + format, path + 'negz' + format];
+
+	  // var textureCube = THREE.ImageUtils.loadTextureCube( urls );
+	  var textureCube = THREE.ImageUtils.loadTextureCube(urls, new THREE.CubeReflectionMapping());
+	  return textureCube;
+	}
+
+	// var loader = new THREE.CubeTextureLoader()
+	// loader.setPath('sky/type1/');
+	// var textureCube = loader.load(['sunny3_left.jpg','sunny3_right.jpg','sunny3_up.jpg','sunny3_up.jpg','sunny3_front.jpg','sunny3_back.jpg',])
+	//       textureCube.format = THREE.RGBFormat;
+	//         textureCube.mapping = THREE.CubeReflectionMapping;
+
+	// var textureLoader = new THREE.TextureLoader();
+	//        var  textureEquirec = textureLoader.load( "sky.jpg" );
+	//         textureEquirec.mapping = THREE.EquirectangularReflectionMapping;
+	//         textureEquirec.magFilter = THREE.LinearFilter;
+	//         textureEquirec.minFilter = THREE.LinearMipMapLinearFilter;
+
+	// var shader =  THREE.ShaderLib["equirect"]
+	// shader.uniforms["tEquirect"].value = textureEquirec
+	// var material = new THREE.ShaderMaterial( {
+	//           fragmentShader: shader.fragmentShader,
+	//           vertexShader: shader.vertexShader,
+	//           uniforms: shader.uniforms,
+	//           depthWrite: false,
+	//           side: THREE.BackSide
+	//         } )
+
+	// const sky = exports.sky = new THREE.Mesh(new THREE.BoxGeometry( 1000, 1000, 1000 ),material)
+
+	var textureCube = createCubeMap('type2');
+	textureCube.format = THREE.RGBFormat;
+
+	//
+	var shader = THREE.ShaderLib["cube"];
+	shader.uniforms["tCube"].value = textureCube;
+
+	var material = new THREE.ShaderMaterial({
+	  fragmentShader: shader.fragmentShader,
+	  vertexShader: shader.vertexShader,
+	  uniforms: shader.uniforms,
+	  depthWrite: false,
+	  side: THREE.DoubleSide
+	});
+
+	// create the skybox
+	var skybox = new THREE.Mesh(new THREE.BoxGeometry(10000, 10000, 10000), material);
+	exports.sky = skybox;
+
+	var floorMat = new THREE.MeshStandardMaterial({
+	  roughness: 0.8,
+	  color: 0xffffff,
+	  metalness: 0.2,
+	  bumpScale: 0.0005
+	});
+
+	var textureLoader = new THREE.TextureLoader();
+	textureLoader.load("floor/hardwood2_diffuse.jpg", function (map) {
+	  map.wrapS = THREE.RepeatWrapping;
+	  map.wrapT = THREE.RepeatWrapping;
+	  map.anisotropy = 4;
+	  map.repeat.set(10, 24);
+	  floorMat.map = map;
+	  floorMat.needsUpdate = true;
+	});
+
+	textureLoader.load("floor/hardwood2_bump.jpg", function (map) {
+	  map.wrapS = THREE.RepeatWrapping;
+	  map.wrapT = THREE.RepeatWrapping;
+	  map.anisotropy = 4;
+	  map.repeat.set(10, 24);
+	  floorMat.bumpMap = map;
+	  floorMat.needsUpdate = true;
+	});
+
+	textureLoader.load("floor/hardwood2_roughness.jpg", function (map) {
+	  map.wrapS = THREE.RepeatWrapping;
+	  map.wrapT = THREE.RepeatWrapping;
+	  map.anisotropy = 4;
+	  map.repeat.set(10, 24);
+	  floorMat.roughnessMap = map;
+	  floorMat.needsUpdate = true;
+	});
+
+	var floorMesh = new THREE.Mesh(new THREE.PlaneBufferGeometry(20000, 20000), floorMat);
+
+	floorMesh.receiveShadow = true;
+	floorMesh.rotation.x = -Math.PI / 2.0;
+
+	exports.floor = floorMesh;
+
+/***/ },
+/* 46 */
+>>>>>>> Stashed changes
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+<<<<<<< Updated upstream
 	var THREE = __webpack_require__(4);
 	var store = __webpack_require__(3);
 
@@ -52069,15 +66320,117 @@
 
 /***/ },
 /* 39 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	var _assign = __webpack_require__(15);
+=======
+	var _assign = __webpack_require__(29);
 
 	var _assign2 = _interopRequireDefault(_assign);
 
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	var THREE = __webpack_require__(15);
+	var controller = __webpack_require__(28);
+	var store = __webpack_require__(2);
+
+	var lights = module.exports = new THREE.Object3D();
+
+	var spotLight = (0, _assign2.default)(new THREE.SpotLight(), {
+	  castShadow: true,
+	  onlyShadow: true,
+	  shadowCameraNear: 1000,
+	  shadowCameraFar: 20000,
+	  shadowCameraFov: 90,
+	  shadowBias: 0.001
+	});
+	spotLight.position.set(0, 10000, 0);
+
+	var bulbGeometry = new THREE.SphereGeometry(10, 16, 8);
+	var bulbLight = new THREE.PointLight(0xffee88, 10, 3000, 2);
+	var bulbMat = new THREE.MeshStandardMaterial({ emissive: 0xffffee, emissiveIntensity: 1, color: 0x000000 });
+
+	bulbLight.add(new THREE.Mesh(bulbGeometry, bulbMat));
+	bulbLight.position.set(1500, 2000, 1500);
+	bulbLight.castShadow = true;
+
+	var downLight = new THREE.DirectionalLight(0xFFFFFF, 0.4);
+	downLight.position.set(0, 1, 0);
+	var hemiLight = new THREE.HemisphereLight(0xddeeff, 0x0f0e0d, 0.6);
+	var ambientLight = new THREE.AmbientLight('#0c0c0c');
+
+	lights.add(hemiLight, ambientLight, downLight, spotLight);
+
+/***/ },
+/* 47 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var THREE = __webpack_require__(15);
+
+	var building = __webpack_require__(48);
+
+	var buildings = module.exports = window.buildings = new THREE.Object3D();
+	building.rotation.y = Math.PI * 45 / 180;
+
+	buildings.add(building);
+	buildings.position.set(0, 2500, 0);
+
+/***/ },
+/* 48 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _assign = __webpack_require__(29);
+
+	var _assign2 = _interopRequireDefault(_assign);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	var THREE = __webpack_require__(15);
+	var store = __webpack_require__(2);
+
+	var building = module.exports = new THREE.Object3D();
+	var loader = new THREE.JSONLoader();
+	var mesh = new THREE.Mesh();
+	mesh.name = building;
+	mesh.castShadow = true;
+	loader.load('building/building.json', function (geometry, materials) {
+	  var material = new THREE.MeshFaceMaterial(materials);
+	  (0, _assign2.default)(mesh, { geometry: geometry, material: material });
+	});
+	mesh.position.set(0, 0, 0);
+
+	building.add(mesh);
+
+/***/ },
+/* 49 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var THREE = __webpack_require__(15);
+	var streetlight = __webpack_require__(50);
+	var streetlights = module.exports = window.streetlights = new THREE.Object3D();
+	streetlights.add(streetlight);
+	streetlights.position.set(0, 0, 0);
+
+/***/ },
+/* 50 */
+>>>>>>> Stashed changes
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+<<<<<<< Updated upstream
+	var _assign = __webpack_require__(15);
+=======
+	var _assign = __webpack_require__(29);
+>>>>>>> Stashed changes
+
+	var _assign2 = _interopRequireDefault(_assign);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+<<<<<<< Updated upstream
 
 	var THREE = __webpack_require__(4);
 	var controller = __webpack_require__(14);
@@ -52126,10 +66479,45 @@
 
 /***/ },
 /* 41 */
+=======
+
+	var THREE = __webpack_require__(15);
+
+	var store = __webpack_require__(2);
+	var bulbGeometry = new THREE.SphereGeometry(10, 16, 8);
+	var bulbLight = new THREE.PointLight(0xffee88, 10, 3000, 2);
+	var bulbMat = new THREE.MeshStandardMaterial({
+	  emissive: 0xffffee,
+	  emissiveIntensity: 1,
+	  color: 0x000000
+	});
+
+	bulbLight.add(new THREE.Mesh(bulbGeometry, bulbMat));
+	bulbLight.position.set(1500, 4000, 1500);
+	bulbLight.castShadow = true;
+
+	var streetlight = module.exports = window.streetlight = new THREE.Object3D();
+
+	var loader = new THREE.JSONLoader();
+	var mesh = new THREE.Mesh();
+	mesh.name = streetlight;
+	mesh.castShadow = true;
+
+	loader.load('streetlight/streetlight.json', function (geometry, materials) {
+	  var material = new THREE.MeshFaceMaterial(materials);
+	  (0, _assign2.default)(mesh, { geometry: geometry, material: material });
+	});
+	mesh.position.set(1500, 2000, 1500);
+	streetlight.add(mesh, bulbLight);
+
+/***/ },
+/* 51 */
+>>>>>>> Stashed changes
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
+<<<<<<< Updated upstream
 	var _assign = __webpack_require__(15);
 
 	var _assign2 = _interopRequireDefault(_assign);
@@ -52188,10 +66576,20 @@
 	  el: '#interact',
 	  components: {
 	    interact: __webpack_require__(43)
+=======
+	var Vue = __webpack_require__(1);
+	var store = __webpack_require__(2);
+
+	var vm = module.exports = new Vue({
+	  el: '#interact',
+	  components: {
+	    interact: __webpack_require__(52)
+>>>>>>> Stashed changes
 	  }
 	});
 
 /***/ },
+<<<<<<< Updated upstream
 /* 43 */
 /***/ function(module, exports, __webpack_require__) {
 
@@ -52200,36 +66598,68 @@
 
 	if (module.exports.__esModule) module.exports = module.exports.default
 	;(typeof module.exports === "function" ? module.exports.options : module.exports).template = __webpack_require__(49)
+=======
+/* 52 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __vue_script__, __vue_template__
+	__webpack_require__(53)
+	__vue_script__ = __webpack_require__(57)
+	__vue_template__ = __webpack_require__(58)
+	module.exports = __vue_script__ || {}
+	if (module.exports.__esModule) module.exports = module.exports.default
+	if (__vue_template__) { (typeof module.exports === "function" ? module.exports.options : module.exports).template = __vue_template__ }
+>>>>>>> Stashed changes
 	if (false) {(function () {  module.hot.accept()
 	  var hotAPI = require("vue-hot-reload-api")
 	  hotAPI.install(require("vue"), true)
 	  if (!hotAPI.compatible) return
+<<<<<<< Updated upstream
 	  var id = "/Users/bradpitt/building-system/src/interact/index.vue"
+=======
+	  var id = "/Library/WebServer/Documents/building-system/src/interact/index.vue"
+>>>>>>> Stashed changes
 	  if (!module.hot.data) {
 	    hotAPI.createRecord(id, module.exports)
 	  } else {
-	    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+	    hotAPI.update(id, module.exports, __vue_template__)
 	  }
 	})()}
 
 /***/ },
+<<<<<<< Updated upstream
 /* 44 */
+=======
+/* 53 */
+>>>>>>> Stashed changes
 /***/ function(module, exports, __webpack_require__) {
 
 	// style-loader: Adds some css to the DOM by adding a <style> tag
 
 	// load the styles
+<<<<<<< Updated upstream
 	var content = __webpack_require__(45);
 	if(typeof content === 'string') content = [[module.id, content, '']];
 	// add the styles to the DOM
 	var update = __webpack_require__(47)(content, {});
+=======
+	var content = __webpack_require__(54);
+	if(typeof content === 'string') content = [[module.id, content, '']];
+	// add the styles to the DOM
+	var update = __webpack_require__(56)(content, {});
+>>>>>>> Stashed changes
 	if(content.locals) module.exports = content.locals;
 	// Hot Module Replacement
 	if(false) {
 		// When the styles change, update the <style> tags
 		if(!content.locals) {
+<<<<<<< Updated upstream
 			module.hot.accept("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-35c91d26&file=index.vue!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./index.vue", function() {
 				var newContent = require("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-35c91d26&file=index.vue!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./index.vue");
+=======
+			module.hot.accept("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-3557dbdf&file=index.vue!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./index.vue", function() {
+				var newContent = require("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-3557dbdf&file=index.vue!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./index.vue");
+>>>>>>> Stashed changes
 				if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
 				update(newContent);
 			});
@@ -52239,20 +66669,32 @@
 	}
 
 /***/ },
+<<<<<<< Updated upstream
 /* 45 */
 /***/ function(module, exports, __webpack_require__) {
 
 	exports = module.exports = __webpack_require__(46)();
+=======
+/* 54 */
+/***/ function(module, exports, __webpack_require__) {
+
+	exports = module.exports = __webpack_require__(55)();
+>>>>>>> Stashed changes
 	// imports
 
 
 	// module
+<<<<<<< Updated upstream
 	exports.push([module.id, "", ""]);
+=======
+	exports.push([module.id, "\n", ""]);
+>>>>>>> Stashed changes
 
 	// exports
 
 
 /***/ },
+<<<<<<< Updated upstream
 /* 46 */
 /***/ function(module, exports) {
 
@@ -52576,11 +67018,337 @@
 	// <style>
 	// </style>
 
+=======
+/* 55 */
+/***/ function(module, exports) {
+
+	/*
+		MIT License http://www.opensource.org/licenses/mit-license.php
+		Author Tobias Koppers @sokra
+	*/
+	// css base code, injected by the css-loader
+	module.exports = function() {
+		var list = [];
+
+		// return the list of modules as css string
+		list.toString = function toString() {
+			var result = [];
+			for(var i = 0; i < this.length; i++) {
+				var item = this[i];
+				if(item[2]) {
+					result.push("@media " + item[2] + "{" + item[1] + "}");
+				} else {
+					result.push(item[1]);
+				}
+			}
+			return result.join("");
+		};
+
+		// import a list of modules into the list
+		list.i = function(modules, mediaQuery) {
+			if(typeof modules === "string")
+				modules = [[null, modules, ""]];
+			var alreadyImportedModules = {};
+			for(var i = 0; i < this.length; i++) {
+				var id = this[i][0];
+				if(typeof id === "number")
+					alreadyImportedModules[id] = true;
+			}
+			for(i = 0; i < modules.length; i++) {
+				var item = modules[i];
+				// skip already imported module
+				// this implementation is not 100% perfect for weird media query combinations
+				//  when a module is imported multiple times with different media queries.
+				//  I hope this will never occur (Hey this way we have smaller bundles)
+				if(typeof item[0] !== "number" || !alreadyImportedModules[item[0]]) {
+					if(mediaQuery && !item[2]) {
+						item[2] = mediaQuery;
+					} else if(mediaQuery) {
+						item[2] = "(" + item[2] + ") and (" + mediaQuery + ")";
+					}
+					list.push(item);
+				}
+			}
+		};
+		return list;
+	};
+
+
+/***/ },
+/* 56 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/*
+		MIT License http://www.opensource.org/licenses/mit-license.php
+		Author Tobias Koppers @sokra
+	*/
+	var stylesInDom = {},
+		memoize = function(fn) {
+			var memo;
+			return function () {
+				if (typeof memo === "undefined") memo = fn.apply(this, arguments);
+				return memo;
+			};
+		},
+		isOldIE = memoize(function() {
+			return /msie [6-9]\b/.test(window.navigator.userAgent.toLowerCase());
+		}),
+		getHeadElement = memoize(function () {
+			return document.head || document.getElementsByTagName("head")[0];
+		}),
+		singletonElement = null,
+		singletonCounter = 0,
+		styleElementsInsertedAtTop = [];
+
+	module.exports = function(list, options) {
+		if(false) {
+			if(typeof document !== "object") throw new Error("The style-loader cannot be used in a non-browser environment");
+		}
+
+		options = options || {};
+		// Force single-tag solution on IE6-9, which has a hard limit on the # of <style>
+		// tags it will allow on a page
+		if (typeof options.singleton === "undefined") options.singleton = isOldIE();
+
+		// By default, add <style> tags to the bottom of <head>.
+		if (typeof options.insertAt === "undefined") options.insertAt = "bottom";
+
+		var styles = listToStyles(list);
+		addStylesToDom(styles, options);
+
+		return function update(newList) {
+			var mayRemove = [];
+			for(var i = 0; i < styles.length; i++) {
+				var item = styles[i];
+				var domStyle = stylesInDom[item.id];
+				domStyle.refs--;
+				mayRemove.push(domStyle);
+			}
+			if(newList) {
+				var newStyles = listToStyles(newList);
+				addStylesToDom(newStyles, options);
+			}
+			for(var i = 0; i < mayRemove.length; i++) {
+				var domStyle = mayRemove[i];
+				if(domStyle.refs === 0) {
+					for(var j = 0; j < domStyle.parts.length; j++)
+						domStyle.parts[j]();
+					delete stylesInDom[domStyle.id];
+				}
+			}
+		};
+	}
+
+	function addStylesToDom(styles, options) {
+		for(var i = 0; i < styles.length; i++) {
+			var item = styles[i];
+			var domStyle = stylesInDom[item.id];
+			if(domStyle) {
+				domStyle.refs++;
+				for(var j = 0; j < domStyle.parts.length; j++) {
+					domStyle.parts[j](item.parts[j]);
+				}
+				for(; j < item.parts.length; j++) {
+					domStyle.parts.push(addStyle(item.parts[j], options));
+				}
+			} else {
+				var parts = [];
+				for(var j = 0; j < item.parts.length; j++) {
+					parts.push(addStyle(item.parts[j], options));
+				}
+				stylesInDom[item.id] = {id: item.id, refs: 1, parts: parts};
+			}
+		}
+	}
+
+	function listToStyles(list) {
+		var styles = [];
+		var newStyles = {};
+		for(var i = 0; i < list.length; i++) {
+			var item = list[i];
+			var id = item[0];
+			var css = item[1];
+			var media = item[2];
+			var sourceMap = item[3];
+			var part = {css: css, media: media, sourceMap: sourceMap};
+			if(!newStyles[id])
+				styles.push(newStyles[id] = {id: id, parts: [part]});
+			else
+				newStyles[id].parts.push(part);
+		}
+		return styles;
+	}
+
+	function insertStyleElement(options, styleElement) {
+		var head = getHeadElement();
+		var lastStyleElementInsertedAtTop = styleElementsInsertedAtTop[styleElementsInsertedAtTop.length - 1];
+		if (options.insertAt === "top") {
+			if(!lastStyleElementInsertedAtTop) {
+				head.insertBefore(styleElement, head.firstChild);
+			} else if(lastStyleElementInsertedAtTop.nextSibling) {
+				head.insertBefore(styleElement, lastStyleElementInsertedAtTop.nextSibling);
+			} else {
+				head.appendChild(styleElement);
+			}
+			styleElementsInsertedAtTop.push(styleElement);
+		} else if (options.insertAt === "bottom") {
+			head.appendChild(styleElement);
+		} else {
+			throw new Error("Invalid value for parameter 'insertAt'. Must be 'top' or 'bottom'.");
+		}
+	}
+
+	function removeStyleElement(styleElement) {
+		styleElement.parentNode.removeChild(styleElement);
+		var idx = styleElementsInsertedAtTop.indexOf(styleElement);
+		if(idx >= 0) {
+			styleElementsInsertedAtTop.splice(idx, 1);
+		}
+	}
+
+	function createStyleElement(options) {
+		var styleElement = document.createElement("style");
+		styleElement.type = "text/css";
+		insertStyleElement(options, styleElement);
+		return styleElement;
+	}
+
+	function createLinkElement(options) {
+		var linkElement = document.createElement("link");
+		linkElement.rel = "stylesheet";
+		insertStyleElement(options, linkElement);
+		return linkElement;
+	}
+
+	function addStyle(obj, options) {
+		var styleElement, update, remove;
+
+		if (options.singleton) {
+			var styleIndex = singletonCounter++;
+			styleElement = singletonElement || (singletonElement = createStyleElement(options));
+			update = applyToSingletonTag.bind(null, styleElement, styleIndex, false);
+			remove = applyToSingletonTag.bind(null, styleElement, styleIndex, true);
+		} else if(obj.sourceMap &&
+			typeof URL === "function" &&
+			typeof URL.createObjectURL === "function" &&
+			typeof URL.revokeObjectURL === "function" &&
+			typeof Blob === "function" &&
+			typeof btoa === "function") {
+			styleElement = createLinkElement(options);
+			update = updateLink.bind(null, styleElement);
+			remove = function() {
+				removeStyleElement(styleElement);
+				if(styleElement.href)
+					URL.revokeObjectURL(styleElement.href);
+			};
+		} else {
+			styleElement = createStyleElement(options);
+			update = applyToTag.bind(null, styleElement);
+			remove = function() {
+				removeStyleElement(styleElement);
+			};
+		}
+
+		update(obj);
+
+		return function updateStyle(newObj) {
+			if(newObj) {
+				if(newObj.css === obj.css && newObj.media === obj.media && newObj.sourceMap === obj.sourceMap)
+					return;
+				update(obj = newObj);
+			} else {
+				remove();
+			}
+		};
+	}
+
+	var replaceText = (function () {
+		var textStore = [];
+
+		return function (index, replacement) {
+			textStore[index] = replacement;
+			return textStore.filter(Boolean).join('\n');
+		};
+	})();
+
+	function applyToSingletonTag(styleElement, index, remove, obj) {
+		var css = remove ? "" : obj.css;
+
+		if (styleElement.styleSheet) {
+			styleElement.styleSheet.cssText = replaceText(index, css);
+		} else {
+			var cssNode = document.createTextNode(css);
+			var childNodes = styleElement.childNodes;
+			if (childNodes[index]) styleElement.removeChild(childNodes[index]);
+			if (childNodes.length) {
+				styleElement.insertBefore(cssNode, childNodes[index]);
+			} else {
+				styleElement.appendChild(cssNode);
+			}
+		}
+	}
+
+	function applyToTag(styleElement, obj) {
+		var css = obj.css;
+		var media = obj.media;
+
+		if(media) {
+			styleElement.setAttribute("media", media)
+		}
+
+		if(styleElement.styleSheet) {
+			styleElement.styleSheet.cssText = css;
+		} else {
+			while(styleElement.firstChild) {
+				styleElement.removeChild(styleElement.firstChild);
+			}
+			styleElement.appendChild(document.createTextNode(css));
+		}
+	}
+
+	function updateLink(linkElement, obj) {
+		var css = obj.css;
+		var sourceMap = obj.sourceMap;
+
+		if(sourceMap) {
+			// http://stackoverflow.com/a/26603875
+			css += "\n/*# sourceMappingURL=data:application/json;base64," + btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap)))) + " */";
+		}
+
+		var blob = new Blob([css], { type: "text/css" });
+
+		var oldSrc = linkElement.href;
+
+		linkElement.href = URL.createObjectURL(blob);
+
+		if(oldSrc)
+			URL.revokeObjectURL(oldSrc);
+	}
+
+
+/***/ },
+/* 57 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	// <template>
+	//   <div class="v-interact"> </div>
+	// </template>
+	//
+	// <style>
+	// </style>
+	//
+>>>>>>> Stashed changes
 	// <script>
 	module.exports = {
 	  data: function data() {
 	    return {
+<<<<<<< Updated upstream
 	      store: __webpack_require__(3),
+=======
+	      store: __webpack_require__(2),
+>>>>>>> Stashed changes
 	      current: ''
 	    };
 	  },
@@ -52589,12 +67357,20 @@
 	  watch: {}
 	};
 	// </script>
+	//
 
 /***/ },
+<<<<<<< Updated upstream
 /* 49 */
 /***/ function(module, exports) {
 
 	module.exports = "<div class=\"v-interact\">\n  </div>";
+=======
+/* 58 */
+/***/ function(module, exports) {
+
+	module.exports = "\n  <div class=\"v-interact\"> </div>\n";
+>>>>>>> Stashed changes
 
 /***/ }
 /******/ ]);
